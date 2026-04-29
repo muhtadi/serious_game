@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if question else 'Tambah' }} Soal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8">
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        {{ 'Edit Soal' if question else 'Tambah Soal Baru' }} — Stage: <strong>{{ stage.title }}</strong>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="questionForm">
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Tipe Soal</label>
+                    <select class="form-select" name="type" id="typeSelect" onchange="toggleAnswerSection()">
+                        <option value="PG" {{ 'selected' if question and question.type == 'PG' else '' }}>Pilihan Ganda</option>
+                        <option value="Isian" {{ 'selected' if question and question.type == 'Isian' else '' }}>Isian Singkat</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tingkat Kesulitan</label>
+                    <select class="form-select" name="difficulty_tier">
+                        {% for d in ['Easy', 'Medium', 'Hard'] %}
+                        <option value="{{ d }}" {{ 'selected' if question and question.difficulty_tier == d else '' }}>
+                            {{ d }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Teks Soal</label>
+                <textarea class="form-control" name="content_text" rows="3" required>{{ question.content_text if question else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Gambar Pendukung (PNG/JPG/GIF, maks 5MB)</label>
+                {% if question and question.media_url %}
+                <div class="mb-2">
+                    <img src="{{ url_for('static', filename=question.media_url) }}"
+                         class="img-thumbnail" style="max-height:120px">
+                </div>
+                {% endif %}
+                <input type="file" class="form-control" name="media" accept=".png,.jpg,.jpeg,.gif,.webp">
+            </div>
+
+            <!-- Pilihan Ganda -->
+            <div id="pgSection">
+                <label class="form-label">Opsi Jawaban</label>
+                <div id="optionList">
+                    {% if question and question.type == 'PG' %}
+                        {% for i, ans in question.answers|enumerate %}
+                        <div class="input-group mb-2 option-row">
+                            <div class="input-group-text">
+                                <input type="radio" name="correct_option" value="{{ i }}"
+                                       {{ 'checked' if ans.is_correct else '' }}>
+                            </div>
+                            <input type="text" class="form-control" name="option_text" value="{{ ans.text }}" placeholder="Teks opsi">
+                            <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="input-group mb-2 option-row">
+                            <div class="input-group-text">
+                                <input type="radio" name="correct_option" value="0">
+                            </div>
+                            <input type="text" class="form-control" name="option_text" placeholder="Teks opsi">
+                            <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>
+                        </div>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="addOption()">+ Tambah Opsi</button>
+            </div>
+
+            <!-- Isian Singkat -->
+            <div id="isianSection" style="display:none">
+                <div class="mb-3">
+                    <label class="form-label">Variasi Jawaban Benar</label>
+                    <input type="text" class="form-control" name="correct_variants"
+                           value="{{ question.answers|map(attribute='text')|join(', ') if question and question.type == 'Isian' else '' }}"
+                           placeholder="contoh: Data, data, DATA">
+                    <div class="form-text">Pisahkan dengan koma. Validasi bersifat case-insensitive dan trim spasi.</div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Pembahasan / Feedback</label>
+                <textarea class="form-control" name="explanation" rows="2">{{ question.explanation if question else '' }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Simpan Soal</button>
+                <a href="{{ url_for('guru.question_list', stage_id=stage.id) }}" class="btn btn-secondary">Batal</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+let optionCount = document.querySelectorAll('.option-row').length;
+
+function toggleAnswerSection() {
+    const type = document.getElementById('typeSelect').value;
+    document.getElementById('pgSection').style.display   = type === 'PG'    ? '' : 'none';
+    document.getElementById('isianSection').style.display = type === 'Isian' ? '' : 'none';
+}
+
+function addOption() {
+    const list = document.getElementById('optionList');
+    const idx  = list.querySelectorAll('.option-row').length;
+    const div  = document.createElement('div');
+    div.className = 'input-group mb-2 option-row';
+    div.innerHTML = `
+        <div class="input-group-text">
+            <input type="radio" name="correct_option" value="${idx}">
+        </div>
+        <input type="text" class="form-control" name="option_text" placeholder="Teks opsi">
+        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>`;
+    list.appendChild(div);
+    reindexOptions();
+}
+
+function removeOption(btn) {
+    btn.closest('.option-row').remove();
+    reindexOptions();
+}
+
+function reindexOptions() {
+    document.querySelectorAll('.option-row').forEach((row, i) => {
+        row.querySelector('input[type=radio]').value = i;
+    });
+}
+
+// Init on load
+toggleAnswerSection();
+</script>
+{% endblock %}

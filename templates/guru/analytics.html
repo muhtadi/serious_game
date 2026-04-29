@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Analytics — {{ stage.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4>📊 Analytics Challenge — {{ stage.title }}</h4>
+  <a href="{{ url_for('guru.dashboard') }}" class="btn btn-outline-secondary btn-sm">← Kembali</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <div class="display-6 fw-bold">{{ completions|length }}</div>
+        <div class="text-muted small">Total Attempt</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <div class="display-6 fw-bold text-success">{{ completions|selectattr('is_cleared')|list|length }}</div>
+        <div class="text-muted small">Stage Clear</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        {% set avg_mastery = (completions|map(attribute='mastery_percentage')|list|sum / completions|length)|round(1) if completions else 0 %}
+        <div class="display-6 fw-bold text-primary">{{ avg_mastery }}%</div>
+        <div class="text-muted small">Avg Mastery</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm border-warning">
+      <div class="card-body">
+        <div class="display-6 fw-bold text-warning">{{ struggling|length }}</div>
+        <div class="text-muted small">Siswa Struggling</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Siswa Struggling + Unlock Remedial -->
+{% if struggling %}
+<div class="card mb-4 shadow-sm border-warning">
+  <div class="card-header bg-warning text-dark">⚠️ Siswa yang Perlu Perhatian</div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>Siswa</th><th>Aksi</th></tr>
+      </thead>
+      <tbody>
+      {% for s in struggling %}
+      <tr>
+        <td>{{ s.username }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('guru.unlock_challenge') }}" class="d-flex gap-2">
+            <input type="hidden" name="user_id" value="{{ s.id }}">
+            <input type="hidden" name="stage_id" value="{{ stage.id }}">
+            <input type="text" class="form-control form-control-sm" name="note"
+                   placeholder="Catatan (opsional)" style="max-width:200px">
+            <button class="btn btn-sm btn-warning">🔓 Buka Retry</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Completion Log -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-header bg-primary text-white">Riwayat Completion (Challenge)</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>Siswa</th><th>Score</th><th>Mastery</th><th>Easy✓</th><th>Med✓</th><th>Hard✓</th><th>Salah</th><th>Status</th><th>Waktu</th></tr>
+      </thead>
+      <tbody>
+      {% for c in completions %}
+      <tr>
+        <td>{{ c.user.username if c.user else '-' }}</td>
+        <td class="fw-bold">{{ c.score }}</td>
+        <td>{{ c.mastery_percentage }}%</td>
+        <td class="text-success">{{ c.correct_easy }}</td>
+        <td class="text-warning">{{ c.correct_medium }}</td>
+        <td class="text-danger">{{ c.correct_hard }}</td>
+        <td class="text-danger">{{ c.wrong_count }}</td>
+        <td>
+          <span class="badge {{ 'bg-success' if c.is_cleared else 'bg-danger' }}">
+            {{ 'Clear' if c.is_cleared else 'Failed' }}
+          </span>
+        </td>
+        <td>{{ (c.total_time_seconds/60)|round(1) }}m</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="text-center text-muted">Belum ada data.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Unlock History -->
+{% if unlocks %}
+<div class="card shadow-sm">
+  <div class="card-header">Riwayat Unlock Remedial</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th>Siswa</th><th>Catatan</th><th>Status</th><th>Tanggal</th></tr>
+      </thead>
+      <tbody>
+      {% for u in unlocks %}
+      <tr>
+        <td>{{ u.user.username }}</td>
+        <td>{{ u.note or '-' }}</td>
+        <td><span class="badge {{ 'bg-secondary' if u.used else 'bg-success' }}">{{ 'Sudah dipakai' if u.used else 'Aktif' }}</span></td>
+        <td>{{ u.created_at.strftime('%d/%m/%Y') if u.created_at else '-' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

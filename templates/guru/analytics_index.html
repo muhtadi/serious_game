@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Analytics Overview{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>📊 Ringkasan Analytics</h3>
+    <a href="{{ url_for('guru.dashboard') }}" class="btn btn-outline-secondary btn-sm">Ke Dashboard</a>
+</div>
+
+<div class="row g-3">
+    {% for item in stats %}
+    {% set s = item.stage %}
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-body">
+                <h5 class="card-title">{{ s.title }}</h5>
+                <p class="text-muted small mb-2">Modul: {{ s.modul.title }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge {{ 'bg-info text-dark' if s.mode == 'practice' else 'bg-danger' }}">
+                            {{ s.mode|capitalize }}
+                        </span>
+                        <span class="ms-2 small text-muted">{{ item.attempt_count }} attempts</span>
+                    </div>
+                    <a href="{{ url_for('guru.stage_analytics', stage_id=s.id) }}" class="btn btn-primary btn-sm">Detail →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">Belum ada stage untuk dianalisis.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

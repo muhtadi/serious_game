@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">📊 Progress & Analytics</h2>
+
+<!-- Statistik Ringkas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <div class="display-4">{{ total_stages }}</div>
+                <div>Stage Selesai</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <div class="display-4">{{ total_score }}</div>
+                <div>Total Skor</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-dark">
+            <div class="card-body text-center">
+                <div class="display-4">{{ avg_mastery }}%</div>
+                <div>Rata-rata Mastery</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Per Modul -->
+<h4 class="mb-3">📚 Per Modul</h4>
+<div class="row mb-4">
+    {% for m in modul_stats %}
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">{{ m.modul.title }}</div>
+            <div class="card-body">
+                <p class="mb-1">Stage: <strong>{{ m.stages }}</strong></p>
+                <p class="mb-1">Skor Total: <strong>{{ m.total_score }}</strong></p>
+                <p class="mb-0">Avg Mastery: <strong>{{ m.avg_mastery|round(1) }}%</strong></p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><p class="text-muted">Belum ada data.</p></div>
+    {% endfor %}
+</div>
+
+<!-- Riwayat Detail -->
+<h4 class="mb-3">📋 Riwayat Stage</h4>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr><th>Stage</th><th>Modul</th><th>Mode</th><th>Skor</th><th>Mastery</th><th>Waktu</th></tr>
+        </thead>
+        <tbody>
+        {% for c in completions %}
+            <tr>
+                <td>{{ c._stage.title if c._stage else '-' }}</td>
+                <td>{{ c._modul.title if c._modul else '-' }}</td>
+                <td>
+                    <span class="badge {{ 'bg-info' if c.mode == 'practice' else 'bg-danger' }}">
+                        {{ c.mode }}
+                    </span>
+                </td>
+                <td><strong>{{ c.score }}</strong></td>
+                <td>
+                    <div class="progress" style="height:20px">
+                        <div class="progress-bar bg-{{ 'success' if c.mastery_percentage >= 70 else ('warning' if c.mastery_percentage >= 50 else 'danger') }}"
+                             style="width:{{ c.mastery_percentage }}%">
+                            {{ c.mastery_percentage }}%
+                        </div>
+                    </div>
+                </td>
+                <td class="small">{{ c.completed_at.strftime('%d/%m/%Y %H:%M') if c.completed_at else '-' }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="text-muted">Belum ada riwayat.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

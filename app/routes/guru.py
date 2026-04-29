@@ -1,0 +1,347 @@
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask_login import login_required, current_user
+from app import db
+from app.models import (Modul, Stage, Question, Answer, User,
+                        ChallengeUnlock, StageCompletion, AttemptLog,
+                        CURRICULUM_KEYS, KELAS_CHOICES, DIFFICULTY_CHOICES,
+                        MODE_CHALLENGE)
+from app.utils import role_required, save_upload
+import os
+
+guru_bp = Blueprint('guru', __name__)
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+@guru_bp.route('/dashboard')
+@login_required
+@role_required('guru', 'admin')
+def dashboard():
+    moduls = Modul.query.order_by(Modul.order_index).all()
+    return render_template('guru/dashboard.html', moduls=moduls)
+
+# ── MODUL CRUD ─────────────────────────────────────────────────────────────────
+@guru_bp.route('/modul/create', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def modul_create():
+    title = request.form.get('title', '').strip()
+    order = int(float(request.form.get('order_index', 0)))
+    if not title:
+        flash('Judul modul tidak boleh kosong.', 'danger')
+        return redirect(url_for('guru.dashboard'))
+    db.session.add(Modul(title=title, order_index=order))
+    db.session.commit()
+    flash(f'Modul "{title}" berhasil dibuat.', 'success')
+    return redirect(url_for('guru.dashboard'))
+
+@guru_bp.route('/modul/<int:modul_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('guru', 'admin')
+def modul_edit(modul_id):
+    modul = Modul.query.get_or_404(modul_id)
+    if request.method == 'POST':
+        modul.title = request.form.get('title', modul.title).strip()
+        modul.order_index = int(float(request.form.get('order_index', modul.order_index)))
+        db.session.commit()
+        flash('Modul berhasil diperbarui.', 'success')
+        return redirect(url_for('guru.dashboard'))
+    return render_template('guru/modul_edit.html', modul=modul)
+
+@guru_bp.route('/modul/<int:modul_id>/delete', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def modul_delete(modul_id):
+    modul = Modul.query.get_or_404(modul_id)
+    db.session.delete(modul)
+    db.session.commit()
+    flash('Modul berhasil dihapus.', 'info')
+    return redirect(url_for('guru.dashboard'))
+
+# ── STAGE CRUD ─────────────────────────────────────────────────────────────────
+@guru_bp.route('/modul/<int:modul_id>/stage/create', methods=['GET', 'POST'])
+@login_required
+@role_required('guru', 'admin')
+def stage_create(modul_id):
+    modul = Modul.query.get_or_404(modul_id)
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        order = int(float(request.form.get('order_index', 0)))
+        if not title:
+            flash('Judul stage tidak boleh kosong.', 'danger')
+            return redirect(request.url)
+
+        audio_file = request.files.get('audio_bg')
+        audio_filename = save_upload(audio_file, current_app.config['ALLOWED_AUDIO'])
+
+        image_file = request.files.get('stage_image')
+        image_filename = save_upload(image_file, current_app.config['ALLOWED_IMAGE'])
+
+        stage = Stage(
+            modul_id=modul_id, title=title, order_index=order,
+            audio_bg_url=f'uploads/{audio_filename}' if audio_filename else None,
+            image_url=f'uploads/{image_filename}' if image_filename else None,
+            kelas=request.form.get('kelas') or None,
+            difficulty=request.form.get('difficulty') or None,
+            mode=request.form.get('mode', 'practice'),
+        )
+        _apply_curriculum(stage, request.form)
+        db.session.add(stage)
+        db.session.commit()
+        flash(f'Stage "{title}" berhasil dibuat.', 'success')
+        return redirect(url_for('guru.dashboard'))
+    return render_template('guru/stage_form.html', modul=modul, stage=None,
+                           curriculum_keys=CURRICULUM_KEYS,
+                           kelas_choices=KELAS_CHOICES,
+                           difficulty_choices=DIFFICULTY_CHOICES)
+
+@guru_bp.route('/stage/<int:stage_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('guru', 'admin')
+def stage_edit(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    if request.method == 'POST':
+        stage.title = request.form.get('title', stage.title).strip()
+        stage.order_index = int(float(request.form.get('order_index', stage.order_index)))
+        stage.kelas = request.form.get('kelas') or None
+        stage.difficulty = request.form.get('difficulty') or None
+        stage.mode = request.form.get('mode', stage.mode)
+
+        audio_file = request.files.get('audio_bg')
+        audio_filename = save_upload(audio_file, current_app.config['ALLOWED_AUDIO'])
+        if audio_filename:
+            stage.audio_bg_url = f'uploads/{audio_filename}'
+
+        image_file = request.files.get('stage_image')
+        image_filename = save_upload(image_file, current_app.config['ALLOWED_IMAGE'])
+        if image_filename:
+            stage.image_url = f'uploads/{image_filename}'
+
+        _apply_curriculum(stage, request.form)
+        db.session.commit()
+        flash('Stage berhasil diperbarui.', 'success')
+        return redirect(url_for('guru.dashboard'))
+    return render_template('guru/stage_form.html', modul=stage.modul, stage=stage,
+                           curriculum_keys=CURRICULUM_KEYS,
+                           kelas_choices=KELAS_CHOICES,
+                           difficulty_choices=DIFFICULTY_CHOICES)
+
+@guru_bp.route('/stage/<int:stage_id>/delete', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def stage_delete(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    db.session.delete(stage)
+    db.session.commit()
+    flash('Stage berhasil dihapus.', 'info')
+    return redirect(url_for('guru.dashboard'))
+
+# ── QUESTION CRUD ──────────────────────────────────────────────────────────────
+@guru_bp.route('/stage/<int:stage_id>/questions')
+@login_required
+@role_required('guru', 'admin')
+def question_list(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    return render_template('guru/question_list.html', stage=stage)
+
+@guru_bp.route('/stage/<int:stage_id>/question/create', methods=['GET', 'POST'])
+@login_required
+@role_required('guru', 'admin')
+def question_create(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    if request.method == 'POST':
+        q = _build_question(request, stage_id)
+        if q is None:
+            return redirect(request.url)
+        db.session.add(q)
+        db.session.flush()  # dapat q.id sebelum commit
+        _save_answers(q, request.form)
+        db.session.commit()
+        flash('Soal berhasil ditambahkan.', 'success')
+        return redirect(url_for('guru.question_list', stage_id=stage_id))
+    return render_template('guru/question_form.html', stage=stage, question=None)
+
+@guru_bp.route('/question/<int:question_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('guru', 'admin')
+def question_edit(question_id):
+    q = Question.query.get_or_404(question_id)
+    if request.method == 'POST':
+        content = request.form.get('content_text', '').strip()
+        if not content:
+            flash('Teks soal tidak boleh kosong.', 'danger')
+            return redirect(request.url)
+        q.content_text = content
+        q.difficulty_tier = request.form.get('difficulty_tier', q.difficulty_tier)
+        q.type = request.form.get('type', q.type)
+        q.explanation = request.form.get('explanation', '').strip()
+
+        img_file = request.files.get('media')
+        img_name = save_upload(img_file, current_app.config['ALLOWED_IMAGE'])
+        if img_name:
+            q.media_url = f'uploads/{img_name}'
+
+        # Hapus jawaban lama, simpan yang baru
+        Answer.query.filter_by(question_id=q.id).delete()
+        _save_answers(q, request.form)
+        db.session.commit()
+        flash('Soal berhasil diperbarui.', 'success')
+        return redirect(url_for('guru.question_list', stage_id=q.stage_id))
+    return render_template('guru/question_form.html', stage=q.stage, question=q)
+
+@guru_bp.route('/question/<int:question_id>/delete', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def question_delete(question_id):
+    q = Question.query.get_or_404(question_id)
+    stage_id = q.stage_id
+    db.session.delete(q)
+    db.session.commit()
+    flash('Soal berhasil dihapus.', 'info')
+    return redirect(url_for('guru.question_list', stage_id=stage_id))
+
+# ── TOGGLE AKTIF ──────────────────────────────────────────────────────────────
+@guru_bp.route('/modul/<int:modul_id>/toggle', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def modul_toggle(modul_id):
+    modul = Modul.query.get_or_404(modul_id)
+    modul.is_active = not modul.is_active
+    db.session.commit()
+    status = 'diaktifkan' if modul.is_active else 'dinonaktifkan'
+    flash(f'Modul "{modul.title}" {status}.', 'success')
+    return redirect(url_for('guru.dashboard'))
+
+@guru_bp.route('/stage/<int:stage_id>/toggle', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def stage_toggle(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    stage.is_active = not stage.is_active
+    db.session.commit()
+    status = 'diaktifkan' if stage.is_active else 'dinonaktifkan'
+    flash(f'Stage "{stage.title}" {status}.', 'success')
+    return redirect(url_for('guru.dashboard'))
+
+@guru_bp.route('/question/<int:question_id>/toggle', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def question_toggle(question_id):
+    q = Question.query.get_or_404(question_id)
+    q.is_active = not q.is_active
+    db.session.commit()
+    status = 'diaktifkan' if q.is_active else 'dinonaktifkan'
+    flash(f'Soal {status}.', 'success')
+    return redirect(url_for('guru.question_list', stage_id=q.stage_id))
+
+
+def _apply_curriculum(stage, form):
+    for key in CURRICULUM_KEYS:
+        setattr(stage, key, key in form)  # checkbox: ada di form = True, tidak ada = False
+
+def _build_question(req, stage_id):
+    content = req.form.get('content_text', '').strip()
+    if not content:
+        flash('Teks soal tidak boleh kosong.', 'danger')
+        return None
+    img_file = req.files.get('media')
+    img_name = save_upload(img_file, current_app.config['ALLOWED_IMAGE'])
+    return Question(
+        stage_id=stage_id,
+        content_text=content,
+        difficulty_tier=req.form.get('difficulty_tier', 'Easy'),
+        type=req.form.get('type', 'PG'),
+        explanation=req.form.get('explanation', '').strip(),
+        media_url=f'uploads/{img_name}' if img_name else None
+    )
+
+def _save_answers(question, form):
+    q_type = form.get('type', question.type)
+    if q_type == 'PG':
+        texts   = form.getlist('option_text')
+        correct = form.get('correct_option', '-1')
+        for i, text in enumerate(texts):
+            text = text.strip()
+            if not text:
+                continue
+            question.answers.append(
+                Answer(text=text, is_correct=(str(i) == correct))
+            )
+    else:  # Isian
+        variants = form.get('correct_variants', '')
+        for v in variants.split(','):
+            v = v.strip()
+            if v:
+                question.answers.append(Answer(text=v, is_correct=True))
+
+# ── ANALYTICS & REMEDIAL ───────────────────────────────────────────────────────
+@guru_bp.route('/analytics')
+@login_required
+@role_required('guru', 'admin')
+def analytics():
+    """Halaman index analytics: daftar semua stage dengan ringkasan."""
+    stages = Stage.query.order_by(Stage.modul_id, Stage.order_index).all()
+    # Hitung ringkasan sederhana per stage
+    stats = []
+    for s in stages:
+        count = StageCompletion.query.filter_by(stage_id=s.id, mode=MODE_CHALLENGE).count()
+        stats.append({
+            'stage': s,
+            'attempt_count': count
+        })
+    return render_template('guru/analytics_index.html', stats=stats)
+
+@guru_bp.route('/analytics/<int:stage_id>')
+@login_required
+@role_required('guru', 'admin')
+def stage_analytics(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    completions = StageCompletion.query.filter_by(
+        stage_id=stage_id, mode=MODE_CHALLENGE
+    ).order_by(StageCompletion.completed_at.desc()).all()
+
+    # Misconception: soal dengan akurasi rendah
+    from sqlalchemy import func
+    q_stats = db.session.query(
+        AttemptLog.question_id,
+        func.count(AttemptLog.id).label('total'),
+        func.sum(AttemptLog.is_correct.cast(db.Integer)).label('correct'),
+        AttemptLog.wrong_option_selected
+    ).filter_by(stage_id=stage_id, mode=MODE_CHALLENGE)\
+     .group_by(AttemptLog.question_id).all()
+
+    # Siswa yang struggling (nyawa habis / tidak clear)
+    struggling = db.session.query(User).join(
+        StageCompletion, StageCompletion.user_id == User.id
+    ).filter(
+        StageCompletion.stage_id == stage_id,
+        StageCompletion.mode == MODE_CHALLENGE,
+        StageCompletion.is_cleared == False
+    ).distinct().all()
+
+    # Unlock list
+    unlocks = ChallengeUnlock.query.filter_by(stage_id=stage_id).all()
+
+    return render_template('guru/analytics.html',
+        stage=stage, completions=completions, q_stats=q_stats,
+        struggling=struggling, unlocks=unlocks)
+
+@guru_bp.route('/unlock-challenge', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def unlock_challenge():
+    user_id  = request.form.get('user_id', type=int)
+    stage_id = request.form.get('stage_id', type=int)
+    note     = request.form.get('note', '').strip()
+
+    if not user_id or not stage_id:
+        flash('Data tidak lengkap.', 'danger')
+        return redirect(request.referrer or url_for('guru.dashboard'))
+
+    unlock = ChallengeUnlock(
+        user_id=user_id, stage_id=stage_id,
+        unlocked_by=current_user.id, note=note, used=False
+    )
+    db.session.add(unlock)
+    db.session.commit()
+    user = User.query.get(user_id)
+    flash(f'Akses retry challenge untuk {user.username} berhasil dibuka.', 'success')
+    return redirect(request.referrer or url_for('guru.dashboard'))

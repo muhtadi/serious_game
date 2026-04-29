@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if stage else 'Buat' }} Stage{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8">
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        {{ 'Edit Stage' if stage else 'Buat Stage Baru' }} — Modul: <strong>{{ modul.title }}</strong>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="form-label">Judul Stage</label>
+                    <input type="text" class="form-control" name="title"
+                           value="{{ stage.title if stage else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Urutan</label>
+                    <input type="number" class="form-control" name="order_index"
+                           value="{{ stage.order_index if stage else 0 }}" min="0">
+                </div>
+            </div>
+
+            <!-- Gambar Stage -->
+            <div class="mb-3">
+                <label class="form-label">Gambar Stage (PNG/JPG/GIF, maks 5MB)</label>
+                {% if stage and stage.image_url %}
+                <div class="mb-2">
+                    <img src="{{ url_for('static', filename=stage.image_url) }}"
+                         class="img-thumbnail" style="max-height:120px">
+                    <small class="text-muted ms-2">Gambar saat ini</small>
+                </div>
+                {% endif %}
+                <input type="file" class="form-control" name="stage_image" accept=".png,.jpg,.jpeg,.gif,.webp">
+            </div>
+
+            <!-- Kelas & Difficulty & Mode -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Kelas (Sumber Soal Bebras)</label>
+                    <select class="form-select" name="kelas">
+                        <option value="">-- Pilih Kelas --</option>
+                        {% for k in kelas_choices %}
+                        <option value="{{ k }}" {{ 'selected' if stage and stage.kelas == k else '' }}>
+                            Kelas {{ k }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tingkat Kesulitan</label>
+                    <select class="form-select" name="difficulty">
+                        <option value="">-- Pilih Kesulitan --</option>
+                        {% for d in difficulty_choices %}
+                        <option value="{{ d }}" {{ 'selected' if stage and stage.difficulty == d else '' }}>
+                            {{ d }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Mode</label>
+                    <select class="form-select" name="mode">
+                        <option value="practice" {{ 'selected' if stage and stage.mode == 'practice' else '' }}>🎯 Practice</option>
+                        <option value="challenge" {{ 'selected' if stage and stage.mode == 'challenge' else '' }}>⚔️ Challenge</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Background Audio (MP3/OGG/WAV, maks 5MB)</label>
+                {% if stage and stage.audio_bg_url %}
+                <div class="mb-2">
+                    <small class="text-muted">Audio saat ini:</small>
+                    <audio controls style="height:30px" class="ms-2">
+                        <source src="{{ url_for('static', filename=stage.audio_bg_url) }}">
+                    </audio>
+                </div>
+                {% endif %}
+                <input type="file" class="form-control" name="audio_bg" accept=".mp3,.ogg,.wav">
+            </div>
+
+            <!-- Digital Technologies Key Concepts -->
+            <div class="card mb-3 border-info">
+                <div class="card-header bg-info text-white">
+                    Digital Technologies Key Concepts
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                    {% set labels = {
+                        'abstraction': 'Abstraction',
+                        'data_collection': 'Data Collection',
+                        'data_representation': 'Data Representation',
+                        'data_interpretation': 'Data Interpretation',
+                        'specification': 'Specification',
+                        'algorithms': 'Algorithms',
+                        'implementation': 'Implementation',
+                        'digital_systems': 'Digital Systems',
+                        'interactions': 'Interactions',
+                        'impact': 'Impact'
+                    } %}
+                    {% for key in curriculum_keys %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="ck_{{ key }}" name="{{ key }}"
+                                   {{ 'checked' if stage and stage|attr(key) else '' }}>
+                            <label class="form-check-label" for="ck_{{ key }}">
+                                {{ labels[key] }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">Simpan Stage</button>
+                <a href="{{ url_for('guru.dashboard') }}" class="btn btn-secondary">Batal</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+
+
+{% endblock %}

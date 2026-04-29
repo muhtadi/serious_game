@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Bank Soal - {{ stage.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4>Bank Soal: <strong>{{ stage.title }}</strong></h4>
+        <small class="text-muted">Modul: {{ stage.modul.title }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('guru.dashboard') }}" class="btn btn-outline-secondary btn-sm">← Kembali</a>
+        <a href="{{ url_for('guru.question_create', stage_id=stage.id) }}" class="btn btn-primary btn-sm">+ Tambah Soal</a>
+    </div>
+</div>
+
+{% if stage.questions %}
+<div class="accordion" id="accordionSoal">
+{% for q in stage.questions %}
+<div class="accordion-item mb-2 border rounded shadow-sm">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed" type="button"
+                data-bs-toggle="collapse" data-bs-target="#q{{ q.id }}">
+            <span class="badge bg-{{ 'primary' if q.type == 'PG' else 'warning text-dark' }} me-2">{{ q.type }}</span>
+            <span class="badge bg-{{ 'success' if q.difficulty_tier == 'Easy' else ('warning text-dark' if q.difficulty_tier == 'Medium' else 'danger') }} me-2">{{ q.difficulty_tier }}</span>
+            <span class="badge {{ 'bg-success' if q.is_active else 'bg-danger' }} me-2">{{ 'Aktif' if q.is_active else 'Nonaktif' }}</span>
+            {{ q.content_text[:80] }}{% if q.content_text|length > 80 %}…{% endif %}
+        </button>
+    </h2>
+    <div id="q{{ q.id }}" class="accordion-collapse collapse">
+        <div class="accordion-body">
+            {% if q.media_url %}
+            <img src="{{ url_for('static', filename=q.media_url) }}" class="img-fluid mb-2 rounded" style="max-height:200px">
+            {% endif %}
+            <p>{{ q.content_text }}</p>
+
+            {% if q.type == 'PG' %}
+            <ul class="list-group mb-2">
+                {% for ans in q.answers %}
+                <li class="list-group-item {{ 'list-group-item-success fw-bold' if ans.is_correct else '' }}">
+                    {{ '✓ ' if ans.is_correct else '' }}{{ ans.text }}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p><strong>Jawaban benar:</strong>
+                {% for ans in q.answers %}<span class="badge bg-success me-1">{{ ans.text }}</span>{% endfor %}
+            </p>
+            {% endif %}
+
+            {% if q.explanation %}
+            <div class="alert alert-light border mt-2">
+                <strong>Pembahasan:</strong> {{ q.explanation }}
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2 mt-2">
+                <form method="POST" action="{{ url_for('guru.question_toggle', question_id=q.id) }}">
+                    <button class="btn btn-sm {{ 'btn-warning' if q.is_active else 'btn-outline-secondary' }}">
+                        {{ '✓ Aktif' if q.is_active else '✗ Nonaktif' }}
+                    </button>
+                </form>
+                <a href="{{ url_for('guru.question_edit', question_id=q.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                <form method="POST" action="{{ url_for('guru.question_delete', question_id=q.id) }}"
+                      onsubmit="return confirm('Hapus soal ini?')">
+                    <button class="btn btn-sm btn-outline-danger">Hapus</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">Belum ada soal. Klik "+ Tambah Soal" untuk mulai.</div>
+{% endif %}
+{% endblock %}

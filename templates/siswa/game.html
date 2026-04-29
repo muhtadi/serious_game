@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}{{ stage.title }} — {{ 'Practice' if is_practice else 'Challenge' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7">
+
+  <!-- Mode Badge -->
+  <div class="text-center mb-2">
+    <span class="badge fs-6 px-3 py-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }}">
+      {{ '🎯 Practice Mode' if is_practice else '⚔️ Challenge Mode' }}
+    </span>
+  </div>
+
+  <!-- HUD -->
+  <div class="d-flex align-items-center justify-content-between mb-3 p-3 bg-white rounded shadow-sm">
+    <div>
+      <span class="text-muted small">Nyawa</span><br>
+      <span id="nyawaDisplay" style="font-size:1.4rem">
+        {% for i in range(sess.nyawa) %}❤️{% endfor %}
+        {% for i in range(3 - sess.nyawa) %}🖤{% endfor %}
+      </span>
+    </div>
+    <div class="text-center">
+      <span class="text-muted small">Level</span><br>
+      <span id="levelDisplay" class="badge fs-6
+        {% if sess.current_level == 'Easy' %}bg-success
+        {% elif sess.current_level == 'Medium' %}bg-warning text-dark
+        {% else %}bg-danger{% endif %}">
+        {{ sess.current_level }}
+      </span>
+    </div>
+    <div class="text-end">
+      <span class="text-muted small">Mastery</span><br>
+      <strong id="masteryDisplay">{{ temp_mastery }}%</strong>
+    </div>
+  </div>
+
+  <!-- Level Progress Bar -->
+  <div class="d-flex gap-2 mb-3">
+    {% for lvl in level_order %}
+    <div class="flex-fill text-center py-1 rounded small fw-semibold
+      {% if lvl == sess.current_level %}
+        {{ 'bg-success text-white' if lvl == 'Easy' else ('bg-warning text-dark' if lvl == 'Medium' else 'bg-danger text-white') }}
+      {% else %}bg-light text-muted{% endif %}">
+      {{ lvl }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Card Soal -->
+  <div class="card shadow" id="questionCard" style="border-radius:16px">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="text-muted small fw-semibold">{{ stage.title }}</span>
+      <span class="badge {{ 'bg-success' if question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if question.difficulty_tier == 'Medium' else 'bg-danger') }}">
+        {{ question.difficulty_tier }}
+      </span>
+    </div>
+    <div class="card-body p-4">
+      {% if question.media_url %}
+      <div class="text-center mb-3">
+        <img src="{{ url_for('static', filename=question.media_url) }}"
+             class="img-fluid rounded" style="max-height:220px">
+      </div>
+      {% endif %}
+      <p class="fs-5 fw-semibold mb-4">{{ question.content_text }}</p>
+
+      {% if question.type == 'PG' %}
+      <div id="pgOptions" class="d-flex flex-column gap-2">
+        {% for ans in answers %}
+        <button type="button"
+                class="btn btn-outline-secondary text-start p-3 option-btn"
+                data-id="{{ ans.id }}" data-text="{{ ans.text }}"
+                onclick="selectOption(this)">
+          {{ ans.text }}
+        </button>
+        {% endfor %}
+      </div>
+      {% else %}
+      <input type="text" class="form-control form-control-lg" id="isianAnswer"
+             placeholder="Tulis jawaban kamu..." autocomplete="off"
+             oninput="document.getElementById('btnCheck').disabled = this.value.trim() === ''">
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Feedback (Practice: langsung; Challenge: hanya benar/salah) -->
+  <div id="feedbackPanel" class="card mt-3 shadow-sm" style="display:none;border-radius:12px">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span id="feedbackIcon" style="font-size:1.5rem"></span>
+        <strong id="feedbackTitle" class="fs-5"></strong>
+      </div>
+      <p id="feedbackCorrect" class="mb-1 small text-muted"></p>
+      <p id="feedbackExplanation" class="mb-0"></p>
+      <div id="feedbackEvent" class="mt-2 fw-semibold"></div>
+    </div>
+  </div>
+
+  <!-- Tombol -->
+  <div class="mt-3 d-grid gap-2">
+    <button class="btn btn-lg btn-secondary" id="btnCheck" disabled onclick="submitAnswer()">
+      Periksa
+    </button>
+    <button class="btn btn-lg btn-primary" id="btnNext" style="display:none" onclick="nextAction()">
+      Lanjut →
+    </button>
+  </div>
+
+</div>
+</div>
+
+<script>
+const SUBMIT_URL  = "{{ url_for('siswa.game_submit', session_id=sess.id) }}";
+const QUESTION_ID = {{ question.id }};
+const Q_TYPE      = "{{ question.type }}";
+const IS_PRACTICE = {{ 'true' if is_practice else 'false' }};
+let startTime     = Date.now();
+let resultUrl     = null;
+let answeredCount = 0;
+let correctCount  = 0;
+
+{% if question.type == 'PG' %}
+function selectOption(btn) {
+  document.querySelectorAll('.option-btn').forEach(b => {
+    b.classList.remove('btn-primary', 'active-opt');
+    b.classList.add('btn-outline-secondary');
+  });
+  btn.classList.remove('btn-outline-secondary');
+  btn.classList.add('btn-primary', 'active-opt');
+  document.getElementById('btnCheck').disabled = false;
+}
+{% endif %}
+
+async function submitAnswer() {
+  document.getElementById('btnCheck').disabled = true;
+  let answer = '';
+  if (Q_TYPE === 'PG') {
+    const sel = document.querySelector('.active-opt');
+    if (!sel) return;
+    answer = sel.dataset.id;
+    document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+  } else {
+    answer = document.getElementById('isianAnswer').value.trim();
+    document.getElementById('isianAnswer').disabled = true;
+  }
+
+  const timeSpent = (Date.now() - startTime) / 1000;
+  const res  = await fetch(SUBMIT_URL, {
+    method : 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body   : JSON.stringify({question_id: QUESTION_ID, answer, time_spent: timeSpent})
+  });
+  const data = await res.json();
+  answeredCount++;
+  if (data.is_correct) correctCount++;
+
+  // Update mastery display
+  document.getElementById('masteryDisplay').textContent =
+    Math.round(correctCount / answeredCount * 100) + '%';
+
+  showFeedback(data, answer);
+}
+
+function showFeedback(data, userAnswer) {
+  const panel = document.getElementById('feedbackPanel');
+  panel.style.display = '';
+  const ok = data.is_correct;
+
+  panel.className = `card mt-3 shadow-sm border-${ok ? 'success' : 'danger'}`;
+  panel.querySelector('.card-body').className =
+    `card-body bg-${ok ? 'success' : 'danger'} bg-opacity-10`;
+
+  document.getElementById('feedbackIcon').textContent  = ok ? '✅' : '❌';
+  document.getElementById('feedbackTitle').textContent = ok ? 'Benar!' : 'Kurang tepat';
+  document.getElementById('feedbackTitle').className   = `fs-5 text-${ok ? 'success' : 'danger'}`;
+
+  // Practice: tampilkan jawaban benar + pembahasan; Challenge: tampilkan terbatas
+  if (IS_PRACTICE) {
+    document.getElementById('feedbackCorrect').textContent =
+      ok ? '' : 'Jawaban kamu kurang tepat.' + (data.correct_text ? ' Jawaban yang benar: ' + data.correct_text : '');
+    document.getElementById('feedbackExplanation').textContent =
+      data.explanation ? '💡 ' + data.explanation : '';
+  } else {
+    // Challenge Mode: Hanya beri tahu benar/salah, penjelasan disembunyikan sampai akhir (result page)
+    document.getElementById('feedbackCorrect').textContent = ok ? 'Bagus! Pertahankan.' : 'Tetap semangat!';
+    document.getElementById('feedbackExplanation').textContent = '';
+  }
+
+  const evtMap = {
+    'level_up'   : `🚀 Naik ke level <strong>${data.current_level}</strong>!`,
+    'level_down' : `⬇️ Turun ke level <strong>${data.current_level}</strong>`,
+    'stage_clear': '🏆 <strong>STAGE CLEAR!</strong>',
+    'game_over'  : '💀 <strong>GAME OVER</strong>'
+  };
+  document.getElementById('feedbackEvent').innerHTML = evtMap[data.event] || '';
+
+  // Update HUD
+  const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 3 - data.nyawa));
+  document.getElementById('nyawaDisplay').textContent = hearts;
+  const lvlColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};
+  const lvlBadge  = document.getElementById('levelDisplay');
+  lvlBadge.textContent = data.current_level;
+  lvlBadge.className   = 'badge fs-6 ' + (lvlColors[data.current_level] || 'bg-secondary');
+
+  resultUrl = data.result_url;
+  const btnNext = document.getElementById('btnNext');
+  btnNext.style.display = '';
+  if (data.event === 'stage_clear' || data.event === 'game_over') {
+    btnNext.textContent = 'Lihat Hasil';
+    btnNext.className   = `btn btn-lg ${data.event === 'stage_clear' ? 'btn-success' : 'btn-danger'}`;
+  } else {
+    btnNext.textContent = 'Lanjut →';
+    btnNext.className   = 'btn btn-lg btn-primary';
+  }
+}
+
+function nextAction() {
+  if (resultUrl) window.location.href = resultUrl;
+  else window.location.reload();
+}
+</script>
+
+<style>
+.option-btn { border-radius:12px; font-size:1rem; transition:all .15s; }
+.option-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.1); }
+</style>
+{% endblock %}

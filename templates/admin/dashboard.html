@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<h3 class="mb-4">Dashboard Admin</h3>
+
+<div class="row mb-4">
+    <!-- Form Buat Akun -->
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">Buat Akun Baru</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.create_user') }}">
+                    <div class="mb-2">
+                        <input type="text" class="form-control" name="username" placeholder="Username" required>
+                    </div>
+                    <div class="mb-2">
+                        <input type="password" class="form-control" name="password" placeholder="Password" required>
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" name="role">
+                            <option value="siswa">Siswa</option>
+                            <option value="guru">Guru</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Buat Akun</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabel Daftar User -->
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">Daftar User ({{ users|length }})</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Total Poin</th>
+                    <th>Reset Password</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if user.role.value == 'admin' %}bg-danger
+                            {% elif user.role.value == 'guru' %}bg-warning text-dark
+                            {% else %}bg-info text-dark{% endif %}">
+                            {{ user.role.value }}
+                        </span>
+                    </td>
+                    <td>{{ user.total_points }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.reset_password', user_id=user.id) }}" class="d-flex gap-2">
+                            <input type="password" class="form-control form-control-sm" name="new_password" placeholder="Password baru" required style="max-width:160px">
+                            <button type="submit" class="btn btn-warning btn-sm">Reset</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">Belum ada user.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

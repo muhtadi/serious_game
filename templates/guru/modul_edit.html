@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Edit Modul{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">Edit Modul</div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Judul Modul</label>
+                        <input type="text" class="form-control" name="title" value="{{ modul.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Urutan</label>
+                        <input type="number" class="form-control" name="order_index" value="{{ modul.order_index }}" min="0">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                        <a href="{{ url_for('guru.dashboard') }}" class="btn btn-secondary">Batal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

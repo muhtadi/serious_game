@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Leaderboard - {{ stage.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>🏆 Leaderboard — {{ stage.title }}</h4>
+    <a href="{{ url_for('siswa.dashboard') }}" class="btn btn-outline-secondary btn-sm">← Kembali</a>
+  </div>
+
+  {% if rows %}
+  <div class="card shadow-sm">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>#</th><th>Siswa</th><th>Skor</th><th>Akurasi</th><th>Waktu</th></tr>
+      </thead>
+      <tbody>
+      {% for c in rows %}
+      <tr class="{{ 'table-warning fw-bold' if c.user_id == current_user.id else '' }}">
+        <td>
+          {% if loop.index == 1 %}🥇
+          {% elif loop.index == 2 %}🥈
+          {% elif loop.index == 3 %}🥉
+          {% else %}{{ loop.index }}{% endif %}
+        </td>
+        <td>{{ c.user.username if c.user else '-' }}</td>
+        <td class="fw-bold text-primary">{{ c.score }}</td>
+        <td>{{ c.accuracy }}%</td>
+        <td>{{ (c.total_time_seconds / 60)|round(1) }}m</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">Belum ada yang menyelesaikan stage ini.</div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

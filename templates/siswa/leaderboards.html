@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Semua Leaderboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">🏆 Leaderboard</h2>
+
+{% for ld in leaderboard_data %}
+<div class="card mb-3 shadow-sm">
+    <div class="card-header bg-warning bg-opacity-25">
+        <strong>{{ ld.stage.title }}</strong>
+        <span class="badge bg-secondary ms-2">{{ ld.stage.mode }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if ld.rows %}
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>#</th><th>Siswa</th><th>Skor</th><th>Mastery</th><th>Waktu</th></tr>
+            </thead>
+            <tbody>
+            {% for r in ld.rows %}
+            <tr class="{{ 'table-warning' if r.user_id == current_user.id else '' }}">
+                <td>{{ loop.index }}</td>
+                <td>
+                    {% if r._user %}{{ r._user.username }}{% else %}Unknown{% endif %}
+                    {% if r.user_id == current_user.id %}<span class="badge bg-primary">Kamu</span>{% endif %}
+                </td>
+                <td><strong>{{ r.score }}</strong></td>
+                <td>{{ r.mastery_percentage }}%</td>
+                <td class="text-muted small">{{ r.completed_at.strftime('%d/%m %H:%M') if r.completed_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted p-3 mb-0">Belum ada yang menyelesaikan challenge.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">Belum ada leaderboard.</div>
+{% endfor %}
+{% endblock %}
