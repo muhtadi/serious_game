@@ -118,6 +118,36 @@
                 </div>
             </div>
 
+            <!-- Computational Thinking Skill Alignment -->
+            <div class="card mb-3 border-primary">
+                <div class="card-header bg-primary text-white">
+                    Computational Thinking Skill Alignment
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                    {% set ct_labels = {
+                        'decomposition': 'Decomposition',
+                        'abstraction_ct': 'Abstraction',
+                        'modelling_simulation': 'Modelling & Simulation',
+                        'algorithms_ct': 'Algorithms',
+                        'evaluation': 'Evaluation'
+                    } %}
+                    {% for key in ct_skill_keys %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="ck_ct_{{ key }}" name="{{ key }}"
+                                   {{ 'checked' if stage and stage|attr(key) else '' }}>
+                            <label class="form-check-label" for="ck_ct_{{ key }}">
+                                {{ ct_labels[key] }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">Simpan Stage</button>
                 <a href="{{ url_for('guru.dashboard') }}" class="btn btn-secondary">Batal</a>

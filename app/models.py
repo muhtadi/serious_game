@@ -21,6 +21,9 @@ CURRICULUM_KEYS    = [
     'abstraction', 'data_collection', 'data_representation', 'data_interpretation',
     'specification', 'algorithms', 'implementation', 'digital_systems', 'interactions', 'impact'
 ]
+CT_SKILL_KEYS = [
+    'decomposition', 'abstraction_ct', 'modelling_simulation', 'algorithms_ct', 'evaluation'
+]
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 @login_manager.user_loader
@@ -69,6 +72,13 @@ class Stage(db.Model):
     digital_systems     = db.Column(db.Boolean, default=False)
     interactions        = db.Column(db.Boolean, default=False)
     impact              = db.Column(db.Boolean, default=False)
+
+    # Computational Thinking Skill Alignment
+    decomposition        = db.Column(db.Boolean, default=False)
+    abstraction_ct       = db.Column(db.Boolean, default=False)
+    modelling_simulation = db.Column(db.Boolean, default=False)
+    algorithms_ct        = db.Column(db.Boolean, default=False)
+    evaluation           = db.Column(db.Boolean, default=False)
 
     questions = db.relationship('Question', backref='stage', lazy=True,
                                 cascade='all, delete-orphan')

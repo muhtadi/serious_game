@@ -4,7 +4,7 @@ from app import db
 from app.models import (Modul, Stage, Question, Answer, User,
                         GameSession, AttemptLog, StageCompletion, ChallengeUnlock,
                         MODE_PRACTICE, MODE_CHALLENGE, LEVEL_ORDER)
-from app.utils import role_required
+from app.utils import role_required, get_student_competency_data
 from datetime import datetime, timezone
 import json, random
 
@@ -100,7 +100,7 @@ def stage_start(stage_id):
     sess = GameSession(
         user_id=current_user.id, stage_id=stage_id,
         mode=mode, attempt_number=attempt_num,
-        current_level='Easy', nyawa=3, wrong_streak=0,
+        current_level='Easy', nyawa=5, wrong_streak=0,
         is_active=True, is_cleared=False,
         used_question_ids='[]'
     )
@@ -206,11 +206,15 @@ def game_submit(session_id):
             sess.is_active = False
             sess.completed_at = datetime.now(timezone.utc)
         elif sess.wrong_streak >= 2:
+            # Turun level hanya jika sudah salah 2x berturut-turut
             idx = LEVEL_ORDER.index(sess.current_level)
             if idx > 0:
                 sess.current_level = LEVEL_ORDER[idx - 1]
                 event = 'level_down'
             sess.wrong_streak = 0
+        else:
+            # Salah 1x -> tetap di level
+            event = 'wrong_stay'
 
     db.session.commit()
 
@@ -254,26 +258,22 @@ def stage_result(session_id):
                            sess=sess, completion=completion, logs=logs,
                            is_practice=(sess.mode == MODE_PRACTICE))
 
-# ── Leaderboard (Challenge only) ───────────────────────────────────────────────
+# ── Leaderboard Sorting Update ────────────────────────────────────────────────
 @siswa_bp.route('/leaderboard/<int:stage_id>')
 @login_required
 @role_required('siswa')
 def leaderboard(stage_id):
     stage = Stage.query.get_or_404(stage_id)
-    from sqlalchemy import func
-    subq = db.session.query(
-        StageCompletion.user_id,
-        func.max(StageCompletion.score).label('best')
-    ).filter_by(stage_id=stage_id, mode=MODE_CHALLENGE, is_cleared=True)\
-     .group_by(StageCompletion.user_id).subquery()
-
-    rows = db.session.query(StageCompletion)\
-        .join(subq, (StageCompletion.user_id == subq.c.user_id) &
-                    (StageCompletion.score == subq.c.best))\
-        .filter(StageCompletion.stage_id == stage_id,
-                StageCompletion.mode == MODE_CHALLENGE)\
-        .order_by(StageCompletion.score.desc(),
-                  StageCompletion.total_time_seconds.asc()).limit(20).all()
+    
+    # Ranking: 1. Score (Mastery), 2. Level Max, 3. Time
+    rows = StageCompletion.query.filter(
+        StageCompletion.stage_id == stage_id,
+        StageCompletion.mode == MODE_CHALLENGE
+    ).order_by(
+        StageCompletion.score.desc(),
+        StageCompletion.final_level_reached.desc(),
+        StageCompletion.total_time_seconds.asc()
+    ).limit(100).all()
 
     my_best = StageCompletion.query.filter_by(
         user_id=current_user.id, stage_id=stage_id, mode=MODE_CHALLENGE
@@ -291,10 +291,15 @@ def leaderboards():
     stages = Stage.query.filter_by(is_active=True).order_by(Stage.order_index).all()
     leaderboard_data = []
     for stage in stages:
-        # Ambil top 5 per stage
-        rows = StageCompletion.query.filter_by(
-            stage_id=stage.id, mode=MODE_CHALLENGE, is_cleared=True
-        ).order_by(StageCompletion.score.desc()).limit(5).all()
+        # Ambil top 5 per stage tanpa filter
+        rows = StageCompletion.query.filter(
+            StageCompletion.stage_id == stage.id,
+            StageCompletion.mode == MODE_CHALLENGE
+        ).order_by(
+            StageCompletion.score.desc(),
+            StageCompletion.accuracy.desc(),
+            StageCompletion.total_time_seconds.asc()
+        ).limit(5).all()
         # Attach user info
         for r in rows:
             r._user = User.query.get(r.user_id)
@@ -339,12 +344,17 @@ def analytics():
         avg = modul_stats[m]['avg_mastery']
         modul_stats[m]['avg_mastery'] = sum(avg) / len(avg) if avg else 0
 
+    # Competency Data for Spider Charts
+    dt_data, ct_data = get_student_competency_data(current_user.id)
+
     return render_template('siswa/analytics.html',
                            completions=completions,
                            total_stages=total_stages,
                            total_score=total_score,
                            avg_mastery=round(avg_mastery, 1),
-                           modul_stats=modul_stats.values())
+                           modul_stats=modul_stats.values(),
+                           dt_data=dt_data,
+                           ct_data=ct_data)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def _get_session(session_id):
@@ -385,20 +395,31 @@ def _calc_mastery(logs):
 def _save_completion(sess):
     logs = AttemptLog.query.filter_by(session_id=sess.id).all()
     total      = len(logs)
-    c_easy     = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Easy')
-    c_medium   = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Medium')
-    c_hard     = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Hard')
-    wrong      = sum(1 for l in logs if not l.is_correct)
-    correct    = c_easy + c_medium + c_hard
-    accuracy   = round(correct / total * 100, 1) if total else 0
-    mastery    = accuracy  # dapat dikembangkan dengan bobot per tier
+    if total == 0: return
+
+    # Bobot Soal: Easy=1, Medium=2, Hard=3
+    weights = {'Easy': 1, 'Medium': 2, 'Hard': 3}
+    
+    # Mastery = (total skor benar berbobot) / (total skor maksimal yang dikerjakan)
+    sum_correct_weight = sum(weights.get(l.difficulty_tier, 1) for l in logs if l.is_correct)
+    sum_total_weight   = sum(weights.get(l.difficulty_tier, 1) for l in logs)
+    
+    mastery_val = sum_correct_weight / sum_total_weight if sum_total_weight > 0 else 0
+    mastery_pct = round(mastery_val * 100, 1)
+    
+    # Score = Mastery × 1000
+    final_score = round(mastery_val * 1000)
+    
+    # Level tertinggi yang dicapai
+    reached_levels = [l.level_at_attempt for l in logs]
+    highest_lvl_str = 'Easy'
+    for lvl in ['Hard', 'Medium', 'Easy']:
+        if lvl in reached_levels:
+            highest_lvl_str = lvl
+            break
+    
     total_time = sum(l.time_spent_seconds or 0 for l in logs)
     path       = [l.level_at_attempt for l in logs]
-
-    # Progress Score
-    clear_bonus = 200 if sess.is_cleared else 0
-    score = max(0, (c_easy * 100) + (c_medium * 200) + (c_hard * 300)
-                   - (wrong * 50) + clear_bonus)
 
     comp = StageCompletion(
         session_id          = sess.id,
@@ -408,17 +429,17 @@ def _save_completion(sess):
         mode                = sess.mode,
         attempt_number      = sess.attempt_number,
         total_answered      = total,
-        correct_easy        = c_easy,
-        correct_medium      = c_medium,
-        correct_hard        = c_hard,
-        wrong_count         = wrong,
-        accuracy            = accuracy,
-        mastery_percentage  = mastery,
-        final_level_reached = sess.current_level,
+        correct_easy        = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Easy'),
+        correct_medium      = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Medium'),
+        correct_hard        = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Hard'),
+        wrong_count         = total - sum(1 for l in logs if l.is_correct),
+        accuracy            = mastery_pct,
+        mastery_percentage  = mastery_pct,
+        final_level_reached = highest_lvl_str,
         is_cleared          = sess.is_cleared,
         nyawa_remaining     = max(0, sess.nyawa),
         total_time_seconds  = total_time,
-        score               = score,
+        score               = final_score,
         progression_path    = json.dumps(path),
         completed_at        = datetime.now(timezone.utc)
     )
@@ -432,7 +453,7 @@ def _save_completion(sess):
         ).filter(StageCompletion.session_id != sess.id)\
          .order_by(StageCompletion.score.desc()).first()
         prev_best = best_prev.score if best_prev else 0
-        if score > prev_best:
-            current_user.total_points += score - prev_best
+        if final_score > prev_best:
+            current_user.total_points += (final_score - prev_best)
 
     db.session.commit()

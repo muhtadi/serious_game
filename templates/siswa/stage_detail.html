@@ -3,48 +3,50 @@
 
 {% block content %}
 <div class="row justify-content-center">
-<div class="col-md-7">
+<div class="col-12 col-lg-10 col-xl-9">
 
   <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-3">
-    <a href="{{ url_for('siswa.dashboard') }}" class="btn btn-outline-secondary btn-sm">✕</a>
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('siswa.dashboard') }}" class="btn btn-outline-secondary btn-sm shadow-sm">✕</a>
     <div class="flex-grow-1">
-      <div class="progress" style="height:10px">
+      <div class="progress" style="height:12px; border-radius: 6px;">
         <div class="progress-bar bg-success" id="progressBar" style="width:0%;transition:width .4s"></div>
       </div>
     </div>
-    <span class="text-muted small" id="progressLabel">0 / {{ total }}</span>
+    <span class="text-muted fw-bold" id="progressLabel">0 / {{ total }}</span>
   </div>
 
   <!-- Card Soal -->
-  <div class="card shadow" id="questionCard">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span id="qLabel" class="fw-semibold text-muted small">Soal 1 dari {{ total }}</span>
-      <span id="qBadge" class="badge bg-primary">PG</span>
+  <div class="card shadow-lg mb-4" id="questionCard" style="border-radius:20px; overflow:hidden;">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+      <span id="qLabel" class="fw-bold text-muted">Soal 1 dari {{ total }}</span>
+      <span id="qBadge" class="badge bg-primary px-3 py-2">PG</span>
     </div>
-    <div class="card-body">
+    <div class="card-body p-4 p-md-5">
 
       <!-- Gambar soal -->
-      <div id="qMedia" class="mb-3 text-center" style="display:none">
-        <img id="qImg" src="" class="img-fluid rounded" style="max-height:220px">
+      <div id="qMedia" class="mb-4 text-center" style="display:none">
+        <img id="qImg" src="" class="img-fluid rounded shadow-sm" style="max-height:450px; width: auto; object-fit: contain;">
       </div>
 
       <!-- Teks soal -->
-      <p class="fs-5 fw-semibold" id="qText"></p>
+      <div class="question-content mb-4">
+        <p class="fs-4 fw-bold" id="qText"></p>
+      </div>
 
       <!-- Opsi PG -->
-      <div id="pgOptions" class="d-flex flex-column gap-2"></div>
+      <div id="pgOptions" class="row g-3"></div>
 
       <!-- Input Isian -->
-      <div id="isianInput" style="display:none">
-        <input type="text" class="form-control form-control-lg" id="isianAnswer"
+      <div id="isianInput" style="display:none" class="col-12 col-lg-8 mx-auto">
+        <input type="text" class="form-control form-control-lg py-3" id="isianAnswer"
                placeholder="Tulis jawaban kamu..." autocomplete="off">
       </div>
     </div>
   </div>
 
   <!-- Panel Feedback (muncul setelah periksa) -->
-  <div id="feedbackPanel" class="card mt-3 shadow-sm" style="display:none">
+  <div id="feedbackPanel" class="card mt-3 shadow-sm" style="display:none; border-radius:12px;">
     <div class="card-body">
       <div class="d-flex align-items-center gap-2 mb-2">
         <span id="feedbackIcon" style="font-size:1.5rem"></span>
@@ -56,11 +58,11 @@
   </div>
 
   <!-- Tombol Aksi -->
-  <div class="mt-3 d-grid">
-    <button class="btn btn-lg btn-secondary" id="btnCheck" disabled onclick="checkAnswer()">
+  <div class="mt-4 d-grid gap-2">
+    <button class="btn btn-lg btn-secondary shadow-sm" id="btnCheck" disabled onclick="checkAnswer()">
       Periksa
     </button>
-    <button class="btn btn-lg btn-primary mt-2" id="btnNext" style="display:none" onclick="nextQuestion()">
+    <button class="btn btn-lg btn-primary mt-2 shadow-sm" id="btnNext" style="display:none" onclick="nextQuestion()">
       Lanjut →
     </button>
   </div>
@@ -88,7 +90,7 @@ function loadQuestion(idx) {
   document.getElementById('progressLabel').textContent = idx + ' / ' + QUESTIONS.length;
   document.getElementById('qLabel').textContent = 'Soal ' + (idx+1) + ' dari ' + QUESTIONS.length;
   document.getElementById('qBadge').textContent = q.type;
-  document.getElementById('qBadge').className = 'badge ' + (q.type === 'PG' ? 'bg-primary' : 'bg-warning text-dark');
+  document.getElementById('qBadge').className = 'badge px-3 py-2 ' + (q.type === 'PG' ? 'bg-primary' : 'bg-warning text-dark');
   document.getElementById('qText').textContent = q.content_text;
 
   // Media
@@ -104,7 +106,7 @@ function loadQuestion(idx) {
   document.getElementById('feedbackPanel').style.display = 'none';
   document.getElementById('btnCheck').style.display = '';
   document.getElementById('btnCheck').disabled = true;
-  document.getElementById('btnCheck').className = 'btn btn-lg btn-secondary';
+  document.getElementById('btnCheck').className = 'btn btn-lg btn-secondary shadow-sm';
   document.getElementById('btnNext').style.display = 'none';
 
   if (q.type === 'PG') {
@@ -131,13 +133,22 @@ function renderOptions(q) {
   const container = document.getElementById('pgOptions');
   container.innerHTML = '';
   q.answers.forEach(ans => {
+    const col = document.createElement('div');
+    col.className = 'col-12 col-md-6';
+    
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn btn-outline-secondary text-start p-3 option-btn';
+    btn.className = 'btn btn-outline-secondary text-start p-3 w-100 h-100 option-btn';
     btn.dataset.id = ans.id;
-    btn.textContent = ans.text;
+    
+    const span = document.createElement('span');
+    span.className = 'fs-5';
+    span.textContent = ans.text;
+    
+    btn.appendChild(span);
     btn.onclick = () => selectOption(btn, q);
-    container.appendChild(btn);
+    col.appendChild(btn);
+    container.appendChild(col);
   });
 }
 

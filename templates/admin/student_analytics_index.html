@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Analytics Siswa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>📊 Analytics Per Siswa</h3>
+    <div class="btn-group">
+        <a href="{{ url_for('guru.analytics') }}" class="btn btn-outline-primary">Analytics Soal</a>
+        <a href="{{ url_for('admin.student_analytics_index') }}" class="btn btn-primary">Analytics Siswa</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">Daftar Siswa</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Username</th>
+                    <th>Total Poin</th>
+                    <th>Stage Diselesaikan</th>
+                    <th>Aktivitas Terakhir</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.username }}</td>
+                    <td>{{ student.total_points }}</td>
+                    <td>{{ student.completion_count }}</td>
+                    <td>
+                        {% if student.last_activity %}
+                        {{ student.last_activity.completed_at.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.student_analytics_detail', user_id=student.id) }}" class="btn btn-info btn-sm text-white">Detail</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">Belum ada data siswa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

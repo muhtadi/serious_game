@@ -3,11 +3,11 @@
 
 {% block content %}
 <div class="row justify-content-center">
-<div class="col-md-7">
+<div class="col-12 col-lg-10 col-xl-9">
 
   <!-- Mode Badge -->
-  <div class="text-center mb-2">
-    <span class="badge fs-6 px-3 py-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }}">
+  <div class="text-center mb-3">
+    <span class="badge fs-5 px-4 py-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }} shadow-sm">
       {{ '🎯 Practice Mode' if is_practice else '⚔️ Challenge Mode' }}
     </span>
   </div>
@@ -16,14 +16,14 @@
   <div class="d-flex align-items-center justify-content-between mb-3 p-3 bg-white rounded shadow-sm">
     <div>
       <span class="text-muted small">Nyawa</span><br>
-      <span id="nyawaDisplay" style="font-size:1.4rem">
+      <span id="nyawaDisplay" style="font-size:1.6rem">
         {% for i in range(sess.nyawa) %}❤️{% endfor %}
-        {% for i in range(3 - sess.nyawa) %}🖤{% endfor %}
+        {% for i in range(5 - sess.nyawa) %}🖤{% endfor %}
       </span>
     </div>
     <div class="text-center">
       <span class="text-muted small">Level</span><br>
-      <span id="levelDisplay" class="badge fs-6
+      <span id="levelDisplay" class="badge fs-5
         {% if sess.current_level == 'Easy' %}bg-success
         {% elif sess.current_level == 'Medium' %}bg-warning text-dark
         {% else %}bg-danger{% endif %}">
@@ -32,54 +32,62 @@
     </div>
     <div class="text-end">
       <span class="text-muted small">Mastery</span><br>
-      <strong id="masteryDisplay">{{ temp_mastery }}%</strong>
+      <strong id="masteryDisplay" class="fs-4">{{ temp_mastery }}%</strong>
     </div>
   </div>
 
   <!-- Level Progress Bar -->
-  <div class="d-flex gap-2 mb-3">
+  <div class="d-flex gap-2 mb-4">
     {% for lvl in level_order %}
-    <div class="flex-fill text-center py-1 rounded small fw-semibold
+    <div class="flex-fill text-center py-2 rounded small fw-bold
       {% if lvl == sess.current_level %}
         {{ 'bg-success text-white' if lvl == 'Easy' else ('bg-warning text-dark' if lvl == 'Medium' else 'bg-danger text-white') }}
-      {% else %}bg-light text-muted{% endif %}">
+      {% else %}bg-light text-muted{% endif %} shadow-sm">
       {{ lvl }}
     </div>
     {% endfor %}
   </div>
 
   <!-- Card Soal -->
-  <div class="card shadow" id="questionCard" style="border-radius:16px">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span class="text-muted small fw-semibold">{{ stage.title }}</span>
-      <span class="badge {{ 'bg-success' if question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if question.difficulty_tier == 'Medium' else 'bg-danger') }}">
+  <div class="card shadow-lg mb-4" id="questionCard" style="border-radius:20px; overflow:hidden;">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+      <span class="text-muted fw-bold">{{ stage.title }}</span>
+      <span class="badge {{ 'bg-success' if question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if question.difficulty_tier == 'Medium' else 'bg-danger') }} px-3 py-2">
         {{ question.difficulty_tier }}
       </span>
     </div>
-    <div class="card-body p-4">
+    <div class="card-body p-4 p-md-5">
       {% if question.media_url %}
-      <div class="text-center mb-3">
+      <div class="text-center mb-4">
         <img src="{{ url_for('static', filename=question.media_url) }}"
-             class="img-fluid rounded" style="max-height:220px">
+             class="img-fluid rounded shadow-sm" 
+             style="max-height: 450px; width: auto; object-fit: contain;">
       </div>
       {% endif %}
-      <p class="fs-5 fw-semibold mb-4">{{ question.content_text }}</p>
+      
+      <div class="question-content mb-4">
+        <p class="fs-4 fw-bold mb-4">{{ question.content_text }}</p>
+      </div>
 
       {% if question.type == 'PG' %}
-      <div id="pgOptions" class="d-flex flex-column gap-2">
+      <div id="pgOptions" class="row g-3">
         {% for ans in answers %}
-        <button type="button"
-                class="btn btn-outline-secondary text-start p-3 option-btn"
-                data-id="{{ ans.id }}" data-text="{{ ans.text }}"
-                onclick="selectOption(this)">
-          {{ ans.text }}
-        </button>
+        <div class="col-12 col-md-6">
+          <button type="button"
+                  class="btn btn-outline-secondary text-start p-3 w-100 h-100 option-btn"
+                  data-id="{{ ans.id }}" data-text="{{ ans.text }}"
+                  onclick="selectOption(this)">
+            <span class="fs-5">{{ ans.text }}</span>
+          </button>
+        </div>
         {% endfor %}
       </div>
       {% else %}
-      <input type="text" class="form-control form-control-lg" id="isianAnswer"
-             placeholder="Tulis jawaban kamu..." autocomplete="off"
-             oninput="document.getElementById('btnCheck').disabled = this.value.trim() === ''">
+      <div class="col-12 col-lg-8 mx-auto">
+        <input type="text" class="form-control form-control-lg py-3" id="isianAnswer"
+               placeholder="Tulis jawaban kamu..." autocomplete="off"
+               oninput="document.getElementById('btnCheck').disabled = this.value.trim() === ''">
+      </div>
       {% endif %}
     </div>
   </div>
@@ -196,7 +204,7 @@ function showFeedback(data, userAnswer) {
   document.getElementById('feedbackEvent').innerHTML = evtMap[data.event] || '';
 
   // Update HUD
-  const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 3 - data.nyawa));
+  const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 5 - data.nyawa));
   document.getElementById('nyawaDisplay').textContent = hearts;
   const lvlColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};
   const lvlBadge  = document.getElementById('levelDisplay');

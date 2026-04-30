@@ -3,54 +3,54 @@
 
 {% block content %}
 <div class="row justify-content-center">
-<div class="col-md-7">
+<div class="col-12 col-lg-10 col-xl-9">
 
 {% if completion %}
 <!-- Ringkasan Skor -->
-<div class="card text-center shadow-lg mb-4" style="border-radius:20px">
-  <div class="card-body py-4 px-4">
-    <p class="text-muted mb-0">{{ sess.stage.modul.title }}</p>
-    <h4 class="mb-3">{{ sess.stage.title }}</h4>
+<div class="card text-center shadow-lg mb-5" style="border-radius:20px">
+  <div class="card-body py-5 px-4">
+    <p class="text-muted mb-0 fs-5">{{ sess.stage.modul.title }}</p>
+    <h2 class="mb-3 fw-bold">{{ sess.stage.title }}</h2>
 
-    <span class="badge mb-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }}">
+    <span class="badge mb-4 fs-6 px-3 py-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }} shadow-sm">
       {{ '🎯 Practice' if is_practice else '⚔️ Challenge' }}
     </span>
 
     {% if completion.is_cleared %}
-    <div class="alert alert-success py-2 mb-3">🏆 Stage Clear!</div>
+    <div class="alert alert-success py-3 mb-4 shadow-sm fw-bold fs-5">🏆 Stage Clear!</div>
     {% else %}
-    <div class="alert alert-danger py-2 mb-3">💀 Game Over</div>
+    <div class="alert alert-danger py-3 mb-4 shadow-sm fw-bold fs-5">💀 Game Over</div>
     {% endif %}
 
-    <div class="display-3 fw-bold mb-1
+    <div class="display-1 fw-bold mb-1
       text-{{ 'success' if completion.score >= 700 else ('warning' if completion.score >= 400 else 'danger') }}">
       {{ completion.score }}
     </div>
-    <p class="text-muted small mb-3">poin</p>
+    <p class="text-muted fs-4 mb-4">poin</p>
 
-    <div class="row text-center g-2 mb-3">
-      <div class="col-3">
-        <div class="bg-light rounded p-2">
-          <div class="fw-bold text-success">{{ completion.correct_easy }}</div>
-          <div class="text-muted small">Easy ✓</div>
+    <div class="row text-center g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="bg-light rounded p-3 shadow-sm">
+          <div class="fw-bold text-success fs-4">{{ completion.correct_easy }}</div>
+          <div class="text-muted small fw-bold">Easy ✓</div>
         </div>
       </div>
-      <div class="col-3">
-        <div class="bg-light rounded p-2">
-          <div class="fw-bold text-warning">{{ completion.correct_medium }}</div>
-          <div class="text-muted small">Medium ✓</div>
+      <div class="col-6 col-md-3">
+        <div class="bg-light rounded p-3 shadow-sm">
+          <div class="fw-bold text-warning fs-4">{{ completion.correct_medium }}</div>
+          <div class="text-muted small fw-bold">Medium ✓</div>
         </div>
       </div>
-      <div class="col-3">
-        <div class="bg-light rounded p-2">
-          <div class="fw-bold text-danger">{{ completion.correct_hard }}</div>
-          <div class="text-muted small">Hard ✓</div>
+      <div class="col-6 col-md-3">
+        <div class="bg-light rounded p-3 shadow-sm">
+          <div class="fw-bold text-danger fs-4">{{ completion.correct_hard }}</div>
+          <div class="text-muted small fw-bold">Hard ✓</div>
         </div>
       </div>
-      <div class="col-3">
-        <div class="bg-light rounded p-2">
-          <div class="fw-bold">{{ completion.mastery_percentage }}%</div>
-          <div class="text-muted small">Mastery</div>
+      <div class="col-6 col-md-3">
+        <div class="bg-light rounded p-3 shadow-sm">
+          <div class="fw-bold fs-4">{{ completion.mastery_percentage }}%</div>
+          <div class="text-muted small fw-bold">Mastery</div>
         </div>
       </div>
     </div>
@@ -58,26 +58,26 @@
     <!-- Progression path -->
     {% set path = completion.progression_path | from_json %}
     {% if path %}
-    <div class="mb-3">
-      <small class="text-muted">Jalur progres:</small><br>
+    <div class="mb-4">
+      <small class="text-muted d-block mb-2">Jalur progres:</small>
       {% for lvl in path %}
-      <span class="badge me-1
-        {{ 'bg-success' if lvl == 'Easy' else ('bg-warning text-dark' if lvl == 'Medium' else 'bg-danger') }}">
+      <span class="badge me-1 px-3 py-2
+        {{ 'bg-success' if lvl == 'Easy' else ('bg-warning text-dark' if lvl == 'Medium' else 'bg-danger') }} shadow-sm">
         {{ lvl }}
       </span>
       {% endfor %}
     </div>
     {% endif %}
 
-    <div class="d-flex gap-2 justify-content-center flex-wrap">
+    <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
       <form method="POST" action="{{ url_for('siswa.stage_start', stage_id=sess.stage_id) }}">
-        <button class="btn btn-outline-primary px-4" style="border-radius:12px">🔄 Coba Lagi</button>
+        <button class="btn btn-lg btn-outline-primary px-4 shadow-sm" style="border-radius:12px">🔄 Coba Lagi</button>
       </form>
       <a href="{{ url_for('siswa.dashboard') }}"
-         class="btn btn-primary px-4" style="border-radius:12px">🏠 Dashboard</a>
+         class="btn btn-lg btn-primary px-4 shadow-sm" style="border-radius:12px">🏠 Dashboard</a>
       {% if completion.is_cleared and not is_practice %}
       <a href="{{ url_for('siswa.leaderboard', stage_id=sess.stage_id) }}"
-         class="btn btn-warning px-4" style="border-radius:12px">🏆 Leaderboard</a>
+         class="btn btn-lg btn-warning px-4 shadow-sm" style="border-radius:12px">🏆 Leaderboard</a>
       {% endif %}
     </div>
   </div>
@@ -85,36 +85,38 @@
 
 <!-- Pembahasan per soal (selalu tampil, baik practice maupun challenge) -->
 {% if logs %}
-<h6 class="mb-3 text-muted">📖 Pembahasan Jawaban</h6>
+<h4 class="mb-4 fw-bold text-muted px-2">📖 Pembahasan Jawaban</h4>
 {% for log in logs %}
 {% set q = log._question %}
-<div class="card mb-3 shadow-sm border-{{ 'success' if log.is_correct else 'danger' }}"
-     style="border-radius:12px;overflow:hidden">
-  <div class="card-header d-flex justify-content-between align-items-center
-    bg-{{ 'success' if log.is_correct else 'danger' }} bg-opacity-10">
-    <div class="d-flex align-items-center gap-2">
-      <span>{{ '✅' if log.is_correct else '❌' }}</span>
-      <span class="badge {{ 'bg-success' if log.difficulty_tier == 'Easy' else ('bg-warning text-dark' if log.difficulty_tier == 'Medium' else 'bg-danger') }}">
+<div class="card mb-4 shadow-sm border-{{ 'success' if log.is_correct else 'danger' }}"
+     style="border-radius:16px;overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center py-3
+    bg-{{ 'success' if log.is_correct else 'danger' }} bg-opacity-10 border-bottom">
+    <div class="d-flex align-items-center gap-3">
+      <span class="fs-4">{{ '✅' if log.is_correct else '❌' }}</span>
+      <span class="badge {{ 'bg-success' if log.difficulty_tier == 'Easy' else ('bg-warning text-dark' if log.difficulty_tier == 'Medium' else 'bg-danger') }} px-3 py-2">
         {{ log.difficulty_tier }}
       </span>
-      <span class="text-muted small">{{ log.time_spent_seconds|round(1) }}s</span>
+      <span class="text-muted fw-bold">{{ log.time_spent_seconds|round(1) }}s</span>
     </div>
-    <span class="badge {{ 'bg-success' if log.is_correct else 'bg-danger' }}">
+    <span class="badge {{ 'bg-success' if log.is_correct else 'bg-danger' }} px-3 py-2">
       {{ 'Benar' if log.is_correct else 'Salah' }}
     </span>
   </div>
-  <div class="card-body">
+  <div class="card-body p-4">
     {% if q %}
       {% if q.media_url %}
-      <img src="{{ url_for('static', filename=q.media_url) }}"
-           class="img-fluid rounded mb-2" style="max-height:150px">
+      <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename=q.media_url) }}"
+             class="img-fluid rounded shadow-sm" style="max-height:300px; width: auto; object-fit: contain;">
+      </div>
       {% endif %}
-      <p class="fw-semibold mb-2">{{ q.content_text }}</p>
+      <p class="fs-5 fw-bold mb-3">{{ q.content_text }}</p>
 
       <!-- Jawaban siswa -->
-      <p class="mb-1 small">
-        Jawaban kamu:
-        <span class="badge {{ 'bg-success' if log.is_correct else 'bg-danger' }}">
+      <div class="mb-3">
+        <span class="text-muted fw-bold">Jawaban kamu:</span>
+        <span class="badge fs-6 px-3 py-2 {{ 'bg-success' if log.is_correct else 'bg-danger' }} shadow-sm ms-2">
           {% if q.type == 'PG' %}
             {% set chosen = q.answers | selectattr('id', 'equalto', log.answer_submitted|int) | first %}
             {{ chosen.text if chosen else log.answer_submitted }}
@@ -122,22 +124,24 @@
             {{ log.answer_submitted }}
           {% endif %}
         </span>
-      </p>
+      </div>
 
       <!-- Jawaban benar (untuk yang salah) -->
       {% if not log.is_correct %}
-      <p class="mb-2 small text-success fw-semibold">
-        Jawaban benar:
+      <div class="mb-4">
+        <span class="text-success fw-bold">Jawaban benar:</span>
+        <div class="d-inline-block ms-2">
         {% for ans in q.answers if ans.is_correct %}
-          <span class="badge bg-success">{{ ans.text }}</span>
+          <span class="badge fs-6 px-3 py-2 bg-success shadow-sm mb-1">{{ ans.text }}</span>
         {% endfor %}
-      </p>
+        </div>
+      </div>
       {% endif %}
 
       <!-- Pembahasan -->
       {% if q.explanation %}
-      <div class="alert alert-light border-start border-primary border-3 py-2 mb-0">
-        <small><strong>💡 Pembahasan:</strong> {{ q.explanation }}</small>
+      <div class="alert alert-light border-start border-primary border-4 py-3 px-4 mb-0 shadow-sm rounded-0 rounded-end">
+        <p class="mb-0 fs-6"><strong>💡 Pembahasan:</strong> {{ q.explanation }}</p>
       </div>
       {% endif %}
     {% else %}

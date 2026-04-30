@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<h3 class="mb-4">🏠 Dashboard Ringkasan</h3>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-primary text-white">
+            <div class="card-body">
+                <h6>Jumlah Siswa</h6>
+                <h2 class="mb-0">{{ stats.total_siswa }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-warning text-dark">
+            <div class="card-body">
+                <h6>Jumlah Guru</h6>
+                <h2 class="mb-0">{{ stats.total_guru }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-info text-white">
+            <div class="card-body">
+                <h6>Total Soal</h6>
+                <h2 class="mb-0">{{ stats.total_soal }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-success text-white">
+            <div class="card-body">
+                <h6>Modul / Stage</h6>
+                <h2 class="mb-0">{{ stats.total_modul }} / {{ stats.total_stage }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-secondary text-white">
+            <div class="card-body">
+                <h6>Total Sesi Selesai</h6>
+                <h2 class="mb-0">{{ stats.total_selesai }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-5">
+    <h5>Aksi Cepat</h5>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.user_management') }}" class="btn btn-outline-primary">Kelola User</a>
+        <a href="{{ url_for('guru.curriculum') }}" class="btn btn-outline-success">Kelola Soal</a>
+        <a href="{{ url_for('admin.student_analytics_index') }}" class="btn btn-outline-info">Lihat Analytics</a>
+    </div>
+</div>
+{% endblock %}

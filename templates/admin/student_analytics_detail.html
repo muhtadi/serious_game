@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Detail Analytics: {{ student.username }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.student_analytics_index') }}">Analytics Siswa</a></li>
+            <li class="breadcrumb-item active">{{ student.username }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <h3>👤 Detail Performa: {{ student.username }}</h3>
+        <span class="badge bg-primary fs-6">Total Poin: {{ student.total_points }}</span>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Total Stage Selesai</h6>
+                <h2 class="mb-0">{{ total_stages }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Total Skor Game</h6>
+                <h2 class="mb-0">{{ total_score }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Rata-rata Mastery</h6>
+                <h2 class="mb-0">{{ avg_mastery }}%</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">Digital Technology Key Concepts</div>
+            <div class="card-body">
+                <canvas id="dtChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-dark">Computational Thinking Skill Alignment</div>
+            <div class="card-body">
+                <canvas id="ctChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-dark text-white">Riwayat Penyelesaian Stage</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Waktu</th>
+                    <th>Modul / Stage</th>
+                    <th>Mode</th>
+                    <th>Skor</th>
+                    <th>Mastery</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in completions %}
+                <tr>
+                    <td class="small">{{ c.completed_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        <div class="fw-bold">{{ c._stage.title if c._stage else 'Unknown' }}</div>
+                        <div class="small text-muted">{{ c._modul.title if c._modul else '-' }}</div>
+                    </td>
+                    <td>
+                        <span class="badge {{ 'bg-info text-dark' if c.mode == 'practice' else 'bg-danger' }}">
+                            {{ c.mode|capitalize }}
+                        </span>
+                    </td>
+                    <td>{{ c.score }}</td>
+                    <td>
+                        <div class="progress" style="height: 15px; width: 80px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ c.mastery_percentage }}%" 
+                                 aria-valuenow="{{ c.mastery_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small>{{ c.mastery_percentage }}%</small>
+                    </td>
+                    <td>
+                        {% if c.is_cleared %}
+                        <span class="text-success fw-bold">✓ Cleared</span>
+                        {% else %}
+                        <span class="text-danger fw-bold">✗ Failed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted">Belum ada riwayat permainan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const dtCtx = document.getElementById('dtChart').getContext('2d');
+const ctCtx = document.getElementById('ctChart').getContext('2d');
+
+const commonOptions = {
+    elements: { line: { borderWidth: 3 } },
+    scales: {
+        r: {
+            angleLines: { display: true },
+            suggestedMin: 0,
+            suggestedMax: 100,
+            ticks: { stepSize: 20 }
+        }
+    },
+    plugins: { legend: { display: false } }
+};
+
+new Chart(dtCtx, {
+    type: 'radar',
+    data: {
+        labels: {{ dt_data.labels | tojson }},
+        datasets: [{
+            label: 'Mastery (%)',
+            data: {{ dt_data.values | tojson }},
+            fill: true,
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgb(54, 162, 235)',
+            pointBackgroundColor: 'rgb(54, 162, 235)'
+        }]
+    },
+    options: commonOptions
+});
+
+new Chart(ctCtx, {
+    type: 'radar',
+    data: {
+        labels: {{ ct_data.labels | tojson }},
+        datasets: [{
+            label: 'Mastery (%)',
+            data: {{ ct_data.values | tojson }},
+            fill: true,
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderColor: 'rgb(255, 99, 132)',
+            pointBackgroundColor: 'rgb(255, 99, 132)'
+        }]
+    },
+    options: commonOptions
+});
+</script>
+{% endblock %}

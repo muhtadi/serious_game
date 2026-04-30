@@ -13,7 +13,15 @@
   <div class="card shadow-sm">
     <table class="table table-hover mb-0">
       <thead class="table-light">
-        <tr><th>#</th><th>Siswa</th><th>Skor</th><th>Akurasi</th><th>Waktu</th></tr>
+        <tr>
+          <th>#</th>
+          <th>Siswa</th>
+          <th>Akurasi (70%)</th>
+          <th>Level Max (20%)</th>
+          <th>Salah (-50/soal)</th>
+          <th>Clear</th>
+          <th>Skor Akhir</th>
+        </tr>
       </thead>
       <tbody>
       {% for c in rows %}
@@ -25,9 +33,25 @@
           {% else %}{{ loop.index }}{% endif %}
         </td>
         <td>{{ c.user.username if c.user else '-' }}</td>
-        <td class="fw-bold text-primary">{{ c.score }}</td>
         <td>{{ c.accuracy }}%</td>
-        <td>{{ (c.total_time_seconds / 60)|round(1) }}m</td>
+        <td>
+            {% if c.final_level_reached == 'Hard' %}
+                <span class="badge bg-danger">Hard (3)</span>
+            {% elif c.final_level_reached == 'Medium' %}
+                <span class="badge bg-warning text-dark">Medium (2)</span>
+            {% else %}
+                <span class="badge bg-success">Easy (1)</span>
+            {% endif %}
+        </td>
+        <td class="text-danger">-{{ c.wrong_count * 50 }} ({{ c.wrong_count }})</td>
+        <td>
+            {% if c.is_cleared %}
+                <span class="text-success fw-bold">+200</span>
+            {% else %}
+                <span class="text-muted">0</span>
+            {% endif %}
+        </td>
+        <td class="fw-bold text-primary fs-5">{{ c.score }}</td>
       </tr>
       {% endfor %}
       </tbody>

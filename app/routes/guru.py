@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (Modul, Stage, Question, Answer, User,
                         ChallengeUnlock, StageCompletion, AttemptLog,
-                        CURRICULUM_KEYS, KELAS_CHOICES, DIFFICULTY_CHOICES,
+                        CURRICULUM_KEYS, CT_SKILL_KEYS, KELAS_CHOICES, DIFFICULTY_CHOICES,
                         MODE_CHALLENGE)
 from app.utils import role_required, save_upload
 import os
@@ -15,6 +15,19 @@ guru_bp = Blueprint('guru', __name__)
 @login_required
 @role_required('guru', 'admin')
 def dashboard():
+    from sqlalchemy import func
+    stats = {
+        'total_siswa': User.query.filter_by(role='siswa').count(),
+        'total_soal': Question.query.count(),
+        'total_selesai': StageCompletion.query.count(),
+        'avg_accuracy': db.session.query(func.avg(StageCompletion.accuracy)).scalar() or 0
+    }
+    return render_template('guru/dashboard_summary.html', stats=stats)
+
+@guru_bp.route('/curriculum')
+@login_required
+@role_required('guru', 'admin')
+def curriculum():
     moduls = Modul.query.order_by(Modul.order_index).all()
     return render_template('guru/dashboard.html', moduls=moduls)
 
@@ -27,11 +40,11 @@ def modul_create():
     order = int(float(request.form.get('order_index', 0)))
     if not title:
         flash('Judul modul tidak boleh kosong.', 'danger')
-        return redirect(url_for('guru.dashboard'))
+        return redirect(url_for('guru.curriculum'))
     db.session.add(Modul(title=title, order_index=order))
     db.session.commit()
     flash(f'Modul "{title}" berhasil dibuat.', 'success')
-    return redirect(url_for('guru.dashboard'))
+    return redirect(url_for('guru.curriculum'))
 
 @guru_bp.route('/modul/<int:modul_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -43,7 +56,7 @@ def modul_edit(modul_id):
         modul.order_index = int(float(request.form.get('order_index', modul.order_index)))
         db.session.commit()
         flash('Modul berhasil diperbarui.', 'success')
-        return redirect(url_for('guru.dashboard'))
+        return redirect(url_for('guru.curriculum'))
     return render_template('guru/modul_edit.html', modul=modul)
 
 @guru_bp.route('/modul/<int:modul_id>/delete', methods=['POST'])
@@ -54,7 +67,7 @@ def modul_delete(modul_id):
     db.session.delete(modul)
     db.session.commit()
     flash('Modul berhasil dihapus.', 'info')
-    return redirect(url_for('guru.dashboard'))
+    return redirect(url_for('guru.curriculum'))
 
 # ── STAGE CRUD ─────────────────────────────────────────────────────────────────
 @guru_bp.route('/modul/<int:modul_id>/stage/create', methods=['GET', 'POST'])
@@ -90,6 +103,7 @@ def stage_create(modul_id):
         return redirect(url_for('guru.dashboard'))
     return render_template('guru/stage_form.html', modul=modul, stage=None,
                            curriculum_keys=CURRICULUM_KEYS,
+                           ct_skill_keys=CT_SKILL_KEYS,
                            kelas_choices=KELAS_CHOICES,
                            difficulty_choices=DIFFICULTY_CHOICES)
 
@@ -121,6 +135,7 @@ def stage_edit(stage_id):
         return redirect(url_for('guru.dashboard'))
     return render_template('guru/stage_form.html', modul=stage.modul, stage=stage,
                            curriculum_keys=CURRICULUM_KEYS,
+                           ct_skill_keys=CT_SKILL_KEYS,
                            kelas_choices=KELAS_CHOICES,
                            difficulty_choices=DIFFICULTY_CHOICES)
 
@@ -236,6 +251,8 @@ def question_toggle(question_id):
 def _apply_curriculum(stage, form):
     for key in CURRICULUM_KEYS:
         setattr(stage, key, key in form)  # checkbox: ada di form = True, tidak ada = False
+    for key in CT_SKILL_KEYS:
+        setattr(stage, key, key in form)
 
 def _build_question(req, stage_id):
     content = req.form.get('content_text', '').strip()

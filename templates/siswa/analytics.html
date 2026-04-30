@@ -22,11 +22,32 @@
             </div>
         </div>
     </div>
+    <div class="row mb-4">
     <div class="col-md-4">
         <div class="card bg-info text-dark">
             <div class="card-body text-center">
                 <div class="display-4">{{ avg_mastery }}%</div>
                 <div>Rata-rata Mastery</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Competency Spider Charts -->
+<div class="row mb-5">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">Digital Technology Key Concepts</div>
+            <div class="card-body">
+                <canvas id="dtChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-dark">Computational Thinking Skill Alignment</div>
+            <div class="card-body">
+                <canvas id="ctChart"></canvas>
             </div>
         </div>
     </div>
@@ -85,4 +106,57 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const dtCtx = document.getElementById('dtChart').getContext('2d');
+const ctCtx = document.getElementById('ctChart').getContext('2d');
+
+const commonOptions = {
+    elements: { line: { borderWidth: 3 } },
+    scales: {
+        r: {
+            angleLines: { display: true },
+            suggestedMin: 0,
+            suggestedMax: 100,
+            ticks: { stepSize: 20 }
+        }
+    },
+    plugins: { legend: { display: false } }
+};
+
+new Chart(dtCtx, {
+    type: 'radar',
+    data: {
+        labels: {{ dt_data.labels | tojson }},
+        datasets: [{
+            label: 'Mastery (%)',
+            data: {{ dt_data.values | tojson }},
+            fill: true,
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgb(54, 162, 235)',
+            pointBackgroundColor: 'rgb(54, 162, 235)'
+        }]
+    },
+    options: commonOptions
+});
+
+new Chart(ctCtx, {
+    type: 'radar',
+    data: {
+        labels: {{ ct_data.labels | tojson }},
+        datasets: [{
+            label: 'Mastery (%)',
+            data: {{ ct_data.values | tojson }},
+            fill: true,
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderColor: 'rgb(255, 99, 132)',
+            pointBackgroundColor: 'rgb(255, 99, 132)'
+        }]
+    },
+    options: commonOptions
+});
+</script>
 {% endblock %}
