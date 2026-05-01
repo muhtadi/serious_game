@@ -41,33 +41,20 @@ def create_app():
     app.register_blueprint(guru_bp, url_prefix='/guru')
     app.register_blueprint(siswa_bp, url_prefix='/siswa')
 
-    # Auto-migration for new CT Skill columns
+    # Database Initialization
     with app.app_context():
         db.create_all()
-        from sqlalchemy import text
-        try:
-            # Check existing columns
-            res = db.session.execute(text("PRAGMA table_info(stages)")).fetchall()
-            existing_cols = [row[1] for row in res]
-            
-            new_cols = [
-                ('decomposition', 'BOOLEAN DEFAULT 0'),
-                ('abstraction_ct', 'BOOLEAN DEFAULT 0'),
-                ('modelling_simulation', 'BOOLEAN DEFAULT 0'),
-                ('algorithms_ct', 'BOOLEAN DEFAULT 0'),
-                ('evaluation', 'BOOLEAN DEFAULT 0')
-            ]
-            
-            needs_commit = False
-            for col_name, col_def in new_cols:
-                if col_name not in existing_cols:
-                    db.session.execute(text(f"ALTER TABLE stages ADD COLUMN {col_name} {col_def}"))
-                    needs_commit = True
-            
-            if needs_commit:
-                db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Auto-migration failed: {e}")
+        
+        # Otopmatis buat admin jika database masih kosong (sangat berguna untuk deploy pertama)
+        from app.models import User, RoleEnum
+        if not User.query.filter_by(role=RoleEnum.admin).first():
+            admin_user = User(
+                username='admin',
+                password=bcrypt.generate_password_hash('admin123').decode('utf-8'),
+                role=RoleEnum.admin
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            app.logger.info("Default admin created: admin / admin123")
 
     return app

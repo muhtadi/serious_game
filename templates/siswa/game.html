@@ -59,7 +59,7 @@
     <div class="card-body p-4 p-md-5">
       {% if question.media_url %}
       <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename=question.media_url) }}"
+        <img src="{{ question.media_url if question.media_url.startswith('http') else url_for('static', filename=question.media_url) }}"
              class="img-fluid rounded shadow-sm" 
              style="max-height: 450px; width: auto; object-fit: contain;">
       </div>

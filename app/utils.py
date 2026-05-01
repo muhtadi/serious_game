@@ -3,6 +3,7 @@ from flask import abort, current_app, request, jsonify
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 import os, uuid
+from supabase import create_client, Client
 
 def role_required(*roles):
     """Decorator untuk membatasi akses berdasarkan role."""
@@ -37,7 +38,6 @@ def get_student_competency_data(user_id):
     stages = {s.id: s for s in Stage.query.filter(Stage.id.in_(stage_ids)).all()} if stage_ids else {}
 
     # Accumulators
-    # { 'abstraction': {'correct': 0, 'total': 0}, ... }
     dt_stats = {key: {'correct': 0, 'total': 0} for key in CURRICULUM_KEYS}
     ct_stats = {key: {'correct': 0, 'total': 0} for key in CT_SKILL_KEYS}
 
@@ -59,7 +59,6 @@ def get_student_competency_data(user_id):
                 if log.is_correct:
                     ct_stats[key]['correct'] += 1
 
-    # Format untuk Chart.js (Spider Chart)
     dt_labels = {
         'abstraction': 'Abstraction', 'data_collection': 'Data Collection',
         'data_representation': 'Data Representation', 'data_interpretation': 'Data Interpretation',
@@ -85,15 +84,34 @@ def get_student_competency_data(user_id):
     return dt_data, ct_data
 
 def save_upload(file, allowed_set):
-    """Simpan file upload, return nama file atau None jika tidak valid."""
+    """Simpan file ke Supabase Storage jika ada config, jika tidak ke local."""
     if not file or file.filename == '':
         return None
     ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
     if ext not in allowed_set:
         return None
     filename = f"{uuid.uuid4().hex}.{ext}"
-    upload_dir = current_app.config['UPLOAD_FOLDER']
-    os.makedirs(upload_dir, exist_ok=True)
-    file.save(os.path.join(upload_dir, filename))
-    return filename
 
+    url = current_app.config.get('SUPABASE_URL')
+    key = current_app.config.get('SUPABASE_KEY')
+    bucket_name = current_app.config.get('SUPABASE_BUCKET')
+
+    if url and key:
+        try:
+            supabase: Client = create_client(url, key)
+            file_data = file.read()
+            supabase.storage.from_(bucket_name).upload(
+                path=filename,
+                file=file_data,
+                file_options={"content-type": f"image/{ext}" if ext != 'mp3' else "audio/mpeg"}
+            )
+            return supabase.storage.from_(bucket_name).get_public_url(filename)
+        except Exception as e:
+            current_app.logger.error(f"Supabase upload error: {e}")
+            return None
+    else:
+        # Fallback ke Local
+        upload_dir = current_app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_dir, exist_ok=True)
+        file.save(os.path.join(upload_dir, filename))
+        return f"uploads/{filename}"

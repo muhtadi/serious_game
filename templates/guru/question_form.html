@@ -40,7 +40,7 @@
                 <label class="form-label">Gambar Pendukung (PNG/JPG/GIF, maks 5MB)</label>
                 {% if question and question.media_url %}
                 <div class="mb-2">
-                    <img src="{{ url_for('static', filename=question.media_url) }}"
+                    <img src="{{ question.media_url if question.media_url.startswith('http') else url_for('static', filename=question.media_url) }}"
                          class="img-thumbnail" style="max-height:120px">
                 </div>
                 {% endif %}

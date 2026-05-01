@@ -29,7 +29,7 @@
                 <label class="form-label">Gambar Stage (PNG/JPG/GIF, maks 5MB)</label>
                 {% if stage and stage.image_url %}
                 <div class="mb-2">
-                    <img src="{{ url_for('static', filename=stage.image_url) }}"
+                    <img src="{{ stage.image_url if stage.image_url.startswith('http') else url_for('static', filename=stage.image_url) }}"
                          class="img-thumbnail" style="max-height:120px">
                     <small class="text-muted ms-2">Gambar saat ini</small>
                 </div>
@@ -76,7 +76,7 @@
                 <div class="mb-2">
                     <small class="text-muted">Audio saat ini:</small>
                     <audio controls style="height:30px" class="ms-2">
-                        <source src="{{ url_for('static', filename=stage.audio_bg_url) }}">
+                        <source src="{{ stage.audio_bg_url if stage.audio_bg_url.startswith('http') else url_for('static', filename=stage.audio_bg_url) }}">
                     </audio>
                 </div>
                 {% endif %}
