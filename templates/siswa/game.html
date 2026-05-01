@@ -2,6 +2,15 @@
 {% block title %}{{ stage.title }} — {{ 'Practice' if is_practice else 'Challenge' }}{% endblock %}
 
 {% block content %}
+
+{# ── Background Audio (autoplay + loop sepanjang stage) ── #}
+{% if stage.audio_bg_url %}
+<audio id="bgAudio" loop preload="auto" style="display:none">
+  <source src="{{ stage.audio_bg_url | media_url }}" type="audio/mpeg">
+  <source src="{{ stage.audio_bg_url | media_url }}">
+</audio>
+{% endif %}
+
 <div class="row justify-content-center">
 <div class="col-12 col-lg-10 col-xl-9">
 
@@ -10,6 +19,12 @@
     <span class="badge fs-5 px-4 py-2 {{ 'bg-info text-dark' if is_practice else 'bg-danger' }} shadow-sm">
       {{ '🎯 Practice Mode' if is_practice else '⚔️ Challenge Mode' }}
     </span>
+    {% if stage.audio_bg_url %}
+    <button id="btnMute" onclick="toggleMute()"
+            class="btn btn-sm btn-outline-secondary ms-2" title="Mute/Unmute musik">
+      🔊
+    </button>
+    {% endif %}
   </div>
 
   <!-- HUD -->
@@ -52,25 +67,23 @@
   <div class="card shadow-lg mb-4" id="questionCard" style="border-radius:20px; overflow:hidden;">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
       <span class="text-muted fw-bold">{{ stage.title }}</span>
-      <span class="badge {{ 'bg-success' if question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if question.difficulty_tier == 'Medium' else 'bg-danger') }} px-3 py-2">
+      <span id="qTierBadge" class="badge {{ 'bg-success' if question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if question.difficulty_tier == 'Medium' else 'bg-danger') }} px-3 py-2">
         {{ question.difficulty_tier }}
       </span>
     </div>
     <div class="card-body p-4 p-md-5">
-      {% if question.media_url %}
-      <div class="text-center mb-4">
-        <img src="{{ question.media_url if question.media_url.startswith('http') else url_for('static', filename=question.media_url) }}"
-             class="img-fluid rounded shadow-sm" 
-             style="max-height: 450px; width: auto; object-fit: contain;">
-      </div>
-      {% endif %}
-      
-      <div class="question-content mb-4">
-        <p class="fs-4 fw-bold mb-4">{{ question.content_text }}</p>
+      <div id="qMedia" class="text-center mb-4" {{ 'style=display:none' if not question.media_url else '' }}>
+        <img id="qImg"
+             src="{{ question.media_url | media_url if question.media_url else '' }}"
+             class="img-fluid rounded shadow-sm"
+             style="max-height:450px;width:auto;object-fit:contain">
       </div>
 
-      {% if question.type == 'PG' %}
-      <div id="pgOptions" class="row g-3">
+      <div class="question-content mb-4">
+        <p id="qText" class="fs-4 fw-bold mb-4">{{ question.content_text }}</p>
+      </div>
+
+      <div id="pgOptions" class="row g-3" {{ 'style=display:none' if question.type != 'PG' else '' }}>
         {% for ans in answers %}
         <div class="col-12 col-md-6">
           <button type="button"
@@ -82,13 +95,12 @@
         </div>
         {% endfor %}
       </div>
-      {% else %}
-      <div class="col-12 col-lg-8 mx-auto">
+
+      <div id="isianInput" {{ 'style=display:none' if question.type != 'Isian' else '' }}>
         <input type="text" class="form-control form-control-lg py-3" id="isianAnswer"
                placeholder="Tulis jawaban kamu..." autocomplete="off"
                oninput="document.getElementById('btnCheck').disabled = this.value.trim() === ''">
       </div>
-      {% endif %}
     </div>
   </div>
 
@@ -119,16 +131,45 @@
 </div>
 
 <script>
-const SUBMIT_URL  = "{{ url_for('siswa.game_submit', session_id=sess.id) }}";
-const QUESTION_ID = {{ question.id }};
-const Q_TYPE      = "{{ question.type }}";
-const IS_PRACTICE = {{ 'true' if is_practice else 'false' }};
+// ── Background Audio ──────────────────────────────────────────────────────────
+const bgAudio = document.getElementById('bgAudio');
+
+function startAudio() {
+  if (!bgAudio) return;
+  bgAudio.volume = 0.4;
+  bgAudio.play().catch(() => {
+    // Autoplay diblokir browser — tunggu interaksi user pertama
+    document.addEventListener('click', () => bgAudio.play(), { once: true });
+    document.addEventListener('keydown', () => bgAudio.play(), { once: true });
+  });
+}
+
+function toggleMute() {
+  if (!bgAudio) return;
+  bgAudio.muted = !bgAudio.muted;
+  document.getElementById('btnMute').textContent = bgAudio.muted ? '🔇' : '🔊';
+}
+
+// Mulai audio saat halaman load
+startAudio();
+
+// ── Game Logic ────────────────────────────────────────────────────────────────
+const SUBMIT_URL   = "{{ url_for('siswa.game_submit', session_id=sess.id) }}";
+const NEXT_URL     = "{{ url_for('siswa.game_next', session_id=sess.id) }}";
+const IS_PRACTICE  = {{ 'true' if is_practice else 'false' }};
+
+// State soal saat ini (bisa diupdate tanpa reload)
+let currentQuestion = {
+  id   : {{ question.id }},
+  type : "{{ question.type }}",
+  difficulty_tier: "{{ question.difficulty_tier }}"
+};
+
 let startTime     = Date.now();
 let resultUrl     = null;
 let answeredCount = 0;
 let correctCount  = 0;
 
-{% if question.type == 'PG' %}
 function selectOption(btn) {
   document.querySelectorAll('.option-btn').forEach(b => {
     b.classList.remove('btn-primary', 'active-opt');
@@ -138,12 +179,11 @@ function selectOption(btn) {
   btn.classList.add('btn-primary', 'active-opt');
   document.getElementById('btnCheck').disabled = false;
 }
-{% endif %}
 
 async function submitAnswer() {
   document.getElementById('btnCheck').disabled = true;
   let answer = '';
-  if (Q_TYPE === 'PG') {
+  if (currentQuestion.type === 'PG') {
     const sel = document.querySelector('.active-opt');
     if (!sel) return;
     answer = sel.dataset.id;
@@ -157,20 +197,19 @@ async function submitAnswer() {
   const res  = await fetch(SUBMIT_URL, {
     method : 'POST',
     headers: {'Content-Type': 'application/json'},
-    body   : JSON.stringify({question_id: QUESTION_ID, answer, time_spent: timeSpent})
+    body   : JSON.stringify({question_id: currentQuestion.id, answer, time_spent: timeSpent})
   });
   const data = await res.json();
   answeredCount++;
   if (data.is_correct) correctCount++;
 
-  // Update mastery display
   document.getElementById('masteryDisplay').textContent =
     Math.round(correctCount / answeredCount * 100) + '%';
 
-  showFeedback(data, answer);
+  showFeedback(data);
 }
 
-function showFeedback(data, userAnswer) {
+function showFeedback(data) {
   const panel = document.getElementById('feedbackPanel');
   panel.style.display = '';
   const ok = data.is_correct;
@@ -182,18 +221,10 @@ function showFeedback(data, userAnswer) {
   document.getElementById('feedbackIcon').textContent  = ok ? '✅' : '❌';
   document.getElementById('feedbackTitle').textContent = ok ? 'Benar!' : 'Kurang tepat';
   document.getElementById('feedbackTitle').className   = `fs-5 text-${ok ? 'success' : 'danger'}`;
-
-  // Practice: tampilkan jawaban benar + pembahasan; Challenge: tampilkan terbatas
-  if (IS_PRACTICE) {
-    document.getElementById('feedbackCorrect').textContent =
-      ok ? '' : 'Jawaban kamu kurang tepat.' + (data.correct_text ? ' Jawaban yang benar: ' + data.correct_text : '');
-    document.getElementById('feedbackExplanation').textContent =
-      data.explanation ? '💡 ' + data.explanation : '';
-  } else {
-    // Challenge Mode: Hanya beri tahu benar/salah, penjelasan disembunyikan sampai akhir (result page)
-    document.getElementById('feedbackCorrect').textContent = ok ? 'Bagus! Pertahankan.' : 'Tetap semangat!';
-    document.getElementById('feedbackExplanation').textContent = '';
-  }
+  document.getElementById('feedbackCorrect').textContent =
+    ok ? '' : (data.correct_text ? 'Jawaban benar: ' + data.correct_text : 'Jawaban kamu kurang tepat.');
+  document.getElementById('feedbackExplanation').textContent =
+    data.explanation ? '💡 ' + data.explanation : '';
 
   const evtMap = {
     'level_up'   : `🚀 Naik ke level <strong>${data.current_level}</strong>!`,
@@ -223,9 +254,71 @@ function showFeedback(data, userAnswer) {
   }
 }
 
-function nextAction() {
-  if (resultUrl) window.location.href = resultUrl;
-  else window.location.reload();
+async function nextAction() {
+  if (resultUrl) {
+    window.location.href = resultUrl;
+    return;
+  }
+  // Muat soal berikutnya via AJAX — audio tidak berhenti
+  const res  = await fetch(NEXT_URL);
+  const data = await res.json();
+  if (data.error) { window.location.reload(); return; }
+
+  // Update soal
+  currentQuestion = { id: data.question_id, type: data.type, difficulty_tier: data.difficulty_tier };
+  startTime = Date.now();
+
+  // Update teks soal
+  document.getElementById('qText').textContent = data.content_text;
+
+  // Update badge tier
+  const tierColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};
+  document.getElementById('qTierBadge').className =
+    'badge ' + (tierColors[data.difficulty_tier] || 'bg-secondary');
+  document.getElementById('qTierBadge').textContent = data.difficulty_tier;
+
+  // Update media
+  const mediaDiv = document.getElementById('qMedia');
+  if (data.media_url) {
+    document.getElementById('qImg').src = data.media_url;
+    mediaDiv.style.display = '';
+  } else {
+    mediaDiv.style.display = 'none';
+  }
+
+  // Update opsi / input
+  if (data.type === 'PG') {
+    document.getElementById('isianInput').style.display = 'none';
+    const pgDiv = document.getElementById('pgOptions');
+    pgDiv.style.display = '';
+    pgDiv.innerHTML = '';
+    data.answers.forEach(ans => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-secondary text-start p-3 option-btn';
+      btn.dataset.id = ans.id;
+      btn.textContent = ans.text;
+      btn.onclick = () => selectOption(btn);
+      pgDiv.appendChild(btn);
+    });
+  } else {
+    document.getElementById('pgOptions').style.display = 'none';
+    const inp = document.getElementById('isianAnswer');
+    if (inp) {
+      inp.value = '';
+      inp.disabled = false;
+      inp.oninput = () => {
+        document.getElementById('btnCheck').disabled = inp.value.trim() === '';
+      };
+    }
+    document.getElementById('isianInput').style.display = '';
+  }
+
+  // Reset UI
+  document.getElementById('feedbackPanel').style.display = 'none';
+  document.getElementById('btnCheck').disabled = true;
+  document.getElementById('btnCheck').style.display = '';
+  document.getElementById('btnNext').style.display = 'none';
 }
 </script>
 

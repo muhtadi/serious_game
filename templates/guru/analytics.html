@@ -73,6 +73,55 @@
 </div>
 {% endif %}
 
+<!-- Misconception per Soal -->
+{% if q_stats %}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header bg-warning text-dark">🔍 Analisis Soal & Misconception</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>Soal</th><th>Tier</th><th>Total Jawab</th><th>Akurasi</th><th>Opsi Salah Terbanyak</th></tr>
+      </thead>
+      <tbody>
+      {% for qid, stat in q_stats.items() %}
+      <tr class="{{ 'table-danger' if stat.accuracy < 40 else '' }}">
+        <td class="text-truncate" style="max-width:200px">
+          {{ stat.question.content_text[:60] ~ '…' if stat.question and stat.question.content_text|length > 60 else (stat.question.content_text if stat.question else '-') }}
+        </td>
+        <td>
+          {% if stat.question %}
+          <span class="badge {{ 'bg-success' if stat.question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if stat.question.difficulty_tier == 'Medium' else 'bg-danger') }}">
+            {{ stat.question.difficulty_tier }}
+          </span>
+          {% endif %}
+        </td>
+        <td>{{ stat.total }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="progress flex-grow-1" style="height:8px">
+              <div class="progress-bar {{ 'bg-success' if stat.accuracy >= 70 else ('bg-warning' if stat.accuracy >= 40 else 'bg-danger') }}"
+                   style="width:{{ stat.accuracy }}%"></div>
+            </div>
+            <span class="small">{{ stat.accuracy }}%</span>
+          </div>
+        </td>
+        <td>
+          {% if stat.wrong_options %}
+            {% set top = stat.wrong_options | sort(attribute='freq', reverse=True) | first %}
+            <span class="badge bg-danger me-1">{{ top.freq }}x</span>
+            <small>{{ top.text[:40] }}</small>
+          {% else %}
+            <span class="text-muted small">-</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Completion Log -->
 <div class="card mb-4 shadow-sm">
   <div class="card-header bg-primary text-white">Riwayat Completion (Challenge)</div>

@@ -133,3 +133,23 @@ def student_analytics_detail(user_id):
                            avg_mastery=round(avg_mastery, 1),
                            dt_data=dt_data,
                            ct_data=ct_data)
+
+@admin_bp.route('/debug-media')
+@login_required
+@role_required('admin')
+def debug_media():
+    """Cek nilai image_url, audio_bg_url, media_url di DB — hapus setelah debug."""
+    from app.models import Stage, Question
+    stages = Stage.query.all()
+    questions = Question.query.filter(Question.media_url.isnot(None)).all()
+    out = ['<h3>Stages</h3><ul>']
+    for s in stages:
+        out.append(f'<li><b>{s.title}</b><br>'
+                   f'image_url: <code>{s.image_url}</code><br>'
+                   f'audio_bg_url: <code>{s.audio_bg_url}</code></li>')
+    out.append('</ul><h3>Questions with media</h3><ul>')
+    for q in questions:
+        out.append(f'<li>Q#{q.id}: <code>{q.media_url}</code></li>')
+    out.append('</ul>')
+    from flask import Response
+    return Response(''.join(out), mimetype='text/html')

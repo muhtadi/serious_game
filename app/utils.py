@@ -1,9 +1,8 @@
 from functools import wraps
 from flask import abort, current_app, request, jsonify
 from flask_login import current_user
-from werkzeug.utils import secure_filename
-import os, uuid
-from supabase import create_client, Client
+import os, uuid, io, requests as http_requests
+from PIL import Image
 
 def role_required(*roles):
     """Decorator untuk membatasi akses berdasarkan role."""
@@ -83,35 +82,104 @@ def get_student_competency_data(user_id):
 
     return dt_data, ct_data
 
+def _compress_image(file_data: bytes, max_px: int = 1200, quality: int = 82) -> tuple[bytes, str]:
+    """
+    Kompresi gambar:
+    - Resize ke max_px di sisi terpanjang (preserve aspect ratio)
+    - Konversi ke WebP (lossy, quality=82 — hampir tidak terlihat bedanya)
+    - Return (compressed_bytes, 'webp')
+    """
+    img = Image.open(io.BytesIO(file_data))
+
+    # Konversi mode agar WebP support (RGBA → RGB jika perlu)
+    if img.mode in ('RGBA', 'LA'):
+        bg = Image.new('RGB', img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[-1])
+        img = bg
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    # Resize jika lebih besar dari max_px
+    w, h = img.size
+    if max(w, h) > max_px:
+        ratio = max_px / max(w, h)
+        img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format='WEBP', quality=quality, method=6)
+    return buf.getvalue(), 'webp'
+
+
 def save_upload(file, allowed_set):
-    """Simpan file ke Supabase Storage jika ada config, jika tidak ke local."""
+    """
+    Upload file ke Supabase Storage via REST API.
+    Gambar dikompresi ke WebP sebelum upload.
+    Return: public URL (string) jika sukses, None jika gagal.
+    """
     if not file or file.filename == '':
         return None
     ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
     if ext not in allowed_set:
         return None
-    filename = f"{uuid.uuid4().hex}.{ext}"
 
-    url = current_app.config.get('SUPABASE_URL')
-    key = current_app.config.get('SUPABASE_KEY')
-    bucket_name = current_app.config.get('SUPABASE_BUCKET')
+    file_data = file.read()
+    if not file_data:
+        current_app.logger.error("Upload error: file data kosong")
+        return None
 
-    if url and key:
+    # Kompresi gambar → WebP
+    image_exts = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    if ext in image_exts:
         try:
-            supabase: Client = create_client(url, key)
-            file_data = file.read()
-            supabase.storage.from_(bucket_name).upload(
-                path=filename,
-                file=file_data,
-                file_options={"content-type": f"image/{ext}" if ext != 'mp3' else "audio/mpeg"}
+            file_data, ext = _compress_image(file_data)
+            original_size = len(file.read()) if hasattr(file, 'read') else 0
+            current_app.logger.info(
+                f"Gambar dikompres ke WebP: {len(file_data)/1024:.1f} KB"
             )
-            return supabase.storage.from_(bucket_name).get_public_url(filename)
         except Exception as e:
-            current_app.logger.error(f"Supabase upload error: {e}")
+            current_app.logger.warning(f"Kompresi gambar gagal, pakai original: {e}")
+
+    mime_map = {
+        'webp': 'image/webp', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'png': 'image/png', 'gif': 'image/gif',
+        'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav'
+    }
+    mime_type = mime_map.get(ext, 'application/octet-stream')
+    filename  = f"{uuid.uuid4().hex}.{ext}"
+
+    supabase_url = current_app.config.get('SUPABASE_URL', '').rstrip('/')
+    supabase_key = current_app.config.get('SUPABASE_KEY', '')
+    bucket       = current_app.config.get('SUPABASE_BUCKET', 'media')
+
+    if supabase_url and supabase_key:
+        try:
+            upload_url = f"{supabase_url}/storage/v1/object/{bucket}/{filename}"
+            headers = {
+                "Authorization": f"Bearer {supabase_key}",
+                "apikey": supabase_key,
+                "Content-Type": mime_type,
+                "x-upsert": "true"
+            }
+            resp = http_requests.post(upload_url, headers=headers,
+                                      data=file_data, timeout=30)
+            if resp.status_code in (200, 201):
+                public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+                current_app.logger.info(f"Upload sukses: {public_url}")
+                return public_url
+            else:
+                current_app.logger.error(
+                    f"Supabase upload gagal [{resp.status_code}]: {resp.text}"
+                )
+                return None
+        except Exception as e:
+            current_app.logger.error(f"Upload exception: {type(e).__name__}: {e}")
+            if current_app.debug:
+                raise
             return None
     else:
-        # Fallback ke Local
-        upload_dir = current_app.config['UPLOAD_FOLDER']
+        # Fallback lokal
+        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
         os.makedirs(upload_dir, exist_ok=True)
-        file.save(os.path.join(upload_dir, filename))
+        with open(os.path.join(upload_dir, filename), 'wb') as f:
+            f.write(file_data)
         return f"uploads/{filename}"

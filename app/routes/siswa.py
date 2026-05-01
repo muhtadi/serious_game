@@ -259,7 +259,32 @@ def stage_result(session_id):
                            is_practice=(sess.mode == MODE_PRACTICE))
 
 # ── Leaderboard Sorting Update ────────────────────────────────────────────────
-@siswa_bp.route('/leaderboard/<int:stage_id>')
+@siswa_bp.route('/game/<session_id>/next')
+@login_required
+@role_required('siswa')
+def game_next(session_id):
+    """Ambil soal berikutnya tanpa reload halaman penuh."""
+    sess = _get_session(session_id)
+    if not sess or not sess.is_active:
+        return jsonify({'error': 'Sesi tidak aktif'}), 400
+
+    q = _pick_question(sess)
+    if q is None:
+        return jsonify({'error': 'Soal habis'}), 404
+
+    answers_data = [{'id': a.id, 'text': a.text} for a in q.answers] \
+                   if q.type == 'PG' else []
+
+    return jsonify({
+        'question_id'  : q.id,
+        'type'         : q.type,
+        'content_text' : q.content_text,
+        'media_url'    : (q.media_url if q.media_url and
+                          (q.media_url.startswith('http') or q.media_url.startswith('/'))
+                          else url_for('static', filename=q.media_url) if q.media_url else None),
+        'difficulty_tier': q.difficulty_tier,
+        'answers'      : answers_data
+    })
 @login_required
 @role_required('siswa')
 def leaderboard(stage_id):

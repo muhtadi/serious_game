@@ -29,7 +29,7 @@
     <div id="q{{ q.id }}" class="accordion-collapse collapse">
         <div class="accordion-body">
             {% if q.media_url %}
-            <img src="{{ url_for('static', filename=q.media_url) }}" class="img-fluid mb-2 rounded" style="max-height:200px">
+            <img src="{{ q.media_url | media_url }}" class="img-fluid mb-2 rounded" style="max-height:200px">
             {% endif %}
             <p>{{ q.content_text }}</p>
 

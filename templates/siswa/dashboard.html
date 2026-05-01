@@ -29,7 +29,7 @@
       <div class="col-md-4 col-sm-6">
         <div class="card h-100 border-2 {{ 'border-success' if comp and comp.is_cleared else 'border-light' }}">
           {% if stage.image_url %}
-          <img src="{{ url_for('static', filename=stage.image_url) }}"
+          <img src="{{ stage.image_url | media_url }}"
                class="card-img-top" style="height:120px;object-fit:cover">
           {% else %}
           <div class="bg-light d-flex align-items-center justify-content-center"

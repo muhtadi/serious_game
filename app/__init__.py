@@ -23,6 +23,16 @@ def create_app():
     app.jinja_env.filters['enumerate'] = enumerate
     app.jinja_env.filters['from_json'] = lambda s: __import__('json').loads(s or '[]')
 
+    # Filter media_url: return as-is jika sudah URL penuh, else buat static URL
+    def media_url(path):
+        if not path:
+            return ''
+        if path.startswith('http://') or path.startswith('https://'):
+            return path
+        from flask import url_for
+        return url_for('static', filename=path)
+    app.jinja_env.filters['media_url'] = media_url
+
     # Return JSON 401 untuk fetch/AJAX request agar tidak redirect ke login
     @login_manager.unauthorized_handler
     def unauthorized():

@@ -4,7 +4,7 @@ from app import db
 from app.models import (Modul, Stage, Question, Answer, User,
                         ChallengeUnlock, StageCompletion, AttemptLog,
                         CURRICULUM_KEYS, CT_SKILL_KEYS, KELAS_CHOICES, DIFFICULTY_CHOICES,
-                        MODE_CHALLENGE)
+                        MODE_CHALLENGE, MODE_PRACTICE)
 from app.utils import role_required, save_upload
 import os
 
@@ -90,8 +90,8 @@ def stage_create(modul_id):
 
         stage = Stage(
             modul_id=modul_id, title=title, order_index=order,
-            audio_bg_url=f'uploads/{audio_filename}' if audio_filename else None,
-            image_url=f'uploads/{image_filename}' if image_filename else None,
+            audio_bg_url=audio_filename,
+            image_url=image_filename,
             kelas=request.form.get('kelas') or None,
             difficulty=request.form.get('difficulty') or None,
             mode=request.form.get('mode', 'practice'),
@@ -122,12 +122,12 @@ def stage_edit(stage_id):
         audio_file = request.files.get('audio_bg')
         audio_filename = save_upload(audio_file, current_app.config['ALLOWED_AUDIO'])
         if audio_filename:
-            stage.audio_bg_url = f'uploads/{audio_filename}'
+            stage.audio_bg_url = audio_filename
 
         image_file = request.files.get('stage_image')
         image_filename = save_upload(image_file, current_app.config['ALLOWED_IMAGE'])
         if image_filename:
-            stage.image_url = f'uploads/{image_filename}'
+            stage.image_url = image_filename
 
         _apply_curriculum(stage, request.form)
         db.session.commit()
@@ -192,7 +192,7 @@ def question_edit(question_id):
         img_file = request.files.get('media')
         img_name = save_upload(img_file, current_app.config['ALLOWED_IMAGE'])
         if img_name:
-            q.media_url = f'uploads/{img_name}'
+            q.media_url = img_name
 
         # Hapus jawaban lama, simpan yang baru
         Answer.query.filter_by(question_id=q.id).delete()
@@ -267,7 +267,7 @@ def _build_question(req, stage_id):
         difficulty_tier=req.form.get('difficulty_tier', 'Easy'),
         type=req.form.get('type', 'PG'),
         explanation=req.form.get('explanation', '').strip(),
-        media_url=f'uploads/{img_name}' if img_name else None
+        media_url=img_name if img_name else None
     )
 
 def _save_answers(question, form):
@@ -315,15 +315,40 @@ def stage_analytics(stage_id):
         stage_id=stage_id, mode=MODE_CHALLENGE
     ).order_by(StageCompletion.completed_at.desc()).all()
 
-    # Misconception: soal dengan akurasi rendah
+    # Stats per soal: total attempt & correct count
     from sqlalchemy import func
-    q_stats = db.session.query(
+    q_stats_raw = db.session.query(
         AttemptLog.question_id,
         func.count(AttemptLog.id).label('total'),
-        func.sum(AttemptLog.is_correct.cast(db.Integer)).label('correct'),
-        AttemptLog.wrong_option_selected
+        func.sum(func.cast(AttemptLog.is_correct, db.Integer)).label('correct')
     ).filter_by(stage_id=stage_id, mode=MODE_CHALLENGE)\
      .group_by(AttemptLog.question_id).all()
+
+    # Wrong options per soal (untuk misconception detection)
+    wrong_options_raw = db.session.query(
+        AttemptLog.question_id,
+        AttemptLog.wrong_option_selected,
+        func.count(AttemptLog.id).label('freq')
+    ).filter_by(stage_id=stage_id, mode=MODE_CHALLENGE, is_correct=False)\
+     .filter(AttemptLog.wrong_option_selected.isnot(None))\
+     .group_by(AttemptLog.question_id, AttemptLog.wrong_option_selected).all()
+
+    # Gabungkan: {question_id: {total, correct, wrong_options: [...]}}
+    q_stats = {}
+    for row in q_stats_raw:
+        q_stats[row.question_id] = {
+            'question': Question.query.get(row.question_id),
+            'total': row.total,
+            'correct': row.correct or 0,
+            'accuracy': round((row.correct or 0) / row.total * 100, 1) if row.total else 0,
+            'wrong_options': []
+        }
+    for row in wrong_options_raw:
+        if row.question_id in q_stats:
+            q_stats[row.question_id]['wrong_options'].append({
+                'text': row.wrong_option_selected,
+                'freq': row.freq
+            })
 
     # Siswa yang struggling (nyawa habis / tidak clear)
     struggling = db.session.query(User).join(

@@ -55,7 +55,7 @@
                 </td>
                 <td>
                     {% if stage.image_url %}
-                    <img src="{{ url_for('static', filename=stage.image_url) }}"
+                    <img src="{{ stage.image_url | media_url }}"
                          style="height:36px;width:36px;object-fit:cover;border-radius:4px">
                     {% else %}<span class="text-muted">-</span>{% endif %}
                 </td>
@@ -63,7 +63,7 @@
                 <td>
                     {% if stage.audio_bg_url %}
                         <audio controls style="height:28px">
-                            <source src="{{ url_for('static', filename=stage.audio_bg_url) }}">
+                            <source src="{{ stage.audio_bg_url | media_url }}">
                         </audio>
                     {% else %}<span class="text-muted">-</span>{% endif %}
                 </td>
