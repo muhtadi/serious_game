@@ -140,8 +140,7 @@ new Chart(dtCtx, {
         labels: {{ dt_data.labels | tojson }},
         datasets: [{
             label: 'Mastery (%)',
-            data: {{ dt_data.values | tojson }},
-            fill: true,
+            data: {{ dt_data.scores | tojson }},            fill: true,
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
             borderColor: 'rgb(54, 162, 235)',
             pointBackgroundColor: 'rgb(54, 162, 235)'
@@ -156,8 +155,7 @@ new Chart(ctCtx, {
         labels: {{ ct_data.labels | tojson }},
         datasets: [{
             label: 'Mastery (%)',
-            data: {{ ct_data.values | tojson }},
-            fill: true,
+            data: {{ ct_data.scores | tojson }},            fill: true,
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
             borderColor: 'rgb(255, 99, 132)',
             pointBackgroundColor: 'rgb(255, 99, 132)'

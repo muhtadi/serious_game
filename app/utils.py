@@ -75,11 +75,11 @@ def get_student_competency_data(user_id):
 
     dt_data = {
         'labels': [dt_labels[k] for k in CURRICULUM_KEYS],
-        'values': [round(dt_stats[k]['correct'] / dt_stats[k]['total'] * 100, 1) if dt_stats[k]['total'] > 0 else 0 for k in CURRICULUM_KEYS]
+        'scores': [round(dt_stats[k]['correct'] / dt_stats[k]['total'] * 100, 1) if dt_stats[k]['total'] > 0 else 0 for k in CURRICULUM_KEYS]
     }
     ct_data = {
         'labels': [ct_labels[k] for k in CT_SKILL_KEYS],
-        'values': [round(ct_stats[k]['correct'] / ct_stats[k]['total'] * 100, 1) if ct_stats[k]['total'] > 0 else 0 for k in CT_SKILL_KEYS]
+        'scores': [round(ct_stats[k]['correct'] / ct_stats[k]['total'] * 100, 1) if ct_stats[k]['total'] > 0 else 0 for k in CT_SKILL_KEYS]
     }
 
     return dt_data, ct_data
