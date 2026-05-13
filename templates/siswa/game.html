@@ -33,7 +33,7 @@
       <span class="text-muted small">Nyawa</span><br>
       <span id="nyawaDisplay" style="font-size:1.6rem">
         {% for i in range(sess.nyawa) %}❤️{% endfor %}
-        {% for i in range(5 - sess.nyawa) %}🖤{% endfor %}
+        {% for i in range(3 - sess.nyawa) %}🖤{% endfor %}
       </span>
     </div>
     <div class="text-center">
@@ -51,16 +51,21 @@
     </div>
   </div>
 
-  <!-- Level Progress Bar -->
-  <div class="d-flex gap-2 mb-4">
-    {% for lvl in level_order %}
-    <div class="flex-fill text-center py-2 rounded small fw-bold
-      {% if lvl == sess.current_level %}
-        {{ 'bg-success text-white' if lvl == 'Easy' else ('bg-warning text-dark' if lvl == 'Medium' else 'bg-danger text-white') }}
-      {% else %}bg-light text-muted{% endif %} shadow-sm">
-      {{ lvl }}
+  <!-- Adaptive Flow Indicator -->
+  <div class="card mb-4 shadow-sm" style="border-radius: 12px; border-left: 5px solid #0d6efd;">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 overflow-hidden" id="flowDotsContainer">
+          <span class="text-muted small me-2">Flow:</span>
+          <!-- Dots will be injected here by JS -->
+          <div id="flowDots" class="d-flex gap-1 flex-wrap"></div>
+        </div>
+        <div class="ms-3 text-end" style="min-width: 100px;">
+          <small class="text-muted d-block" style="font-size: 0.7rem;">Target:</small>
+          <span class="badge bg-dark">Hard Clear 🏆</span>
+        </div>
+      </div>
     </div>
-    {% endfor %}
   </div>
 
   <!-- Card Soal -->
@@ -80,7 +85,7 @@
       </div>
 
       <div class="question-content mb-4">
-        <p id="qText" class="fs-4 fw-bold mb-4">{{ question.content_text }}</p>
+        <div id="qText" class="mb-4 quill-content">{{ question.content_text | safe }}</div>
       </div>
 
       <div id="pgOptions" class="row g-3" {{ 'style=display:none' if question.type != 'PG' else '' }}>
@@ -112,6 +117,9 @@
         <strong id="feedbackTitle" class="fs-5"></strong>
       </div>
       <p id="feedbackCorrect" class="mb-1 small text-muted"></p>
+      <div id="feedbackExpMedia" class="mb-3 text-center" style="display:none">
+        <img id="feedbackExpImg" src="" class="img-fluid rounded border shadow-sm" style="max-height:400px; width:auto; object-fit:contain">
+      </div>
       <p id="feedbackExplanation" class="mb-0"></p>
       <div id="feedbackEvent" class="mt-2 fw-semibold"></div>
     </div>
@@ -203,6 +211,22 @@ async function submitAnswer() {
   answeredCount++;
   if (data.is_correct) correctCount++;
 
+  // Update Flow Dots
+  const flowDiv = document.getElementById('flowDots');
+  const dot = document.createElement('span');
+  dot.style.width = '14px';
+  dot.style.height = '14px';
+  dot.style.borderRadius = '50%';
+  dot.style.display = 'inline-block';
+  dot.style.cursor = 'help';
+  dot.style.background = data.is_correct ? '#198754' : '#dc3545';
+  
+  // Tambahkan keterangan detail saat di-hover
+  const status = data.is_correct ? 'Benar' : 'Salah';
+  dot.title = `Soal #${answeredCount}: ${status} (${currentQuestion.difficulty_tier})`;
+  
+  flowDiv.appendChild(dot);
+
   document.getElementById('masteryDisplay').textContent =
     Math.round(correctCount / answeredCount * 100) + '%';
 
@@ -223,8 +247,20 @@ function showFeedback(data) {
   document.getElementById('feedbackTitle').className   = `fs-5 text-${ok ? 'success' : 'danger'}`;
   document.getElementById('feedbackCorrect').textContent =
     ok ? '' : (data.correct_text ? 'Jawaban benar: ' + data.correct_text : 'Jawaban kamu kurang tepat.');
-  document.getElementById('feedbackExplanation').textContent =
-    data.explanation ? '💡 ' + data.explanation : '';
+  document.getElementById('feedbackExplanation').innerHTML =
+    data.explanation ? '<div class="quill-content">💡 ' + data.explanation + '</div>' : '';
+
+  // Explanation image
+  const expMediaDiv = document.getElementById('feedbackExpMedia');
+  if (data.explanation_media_url) {
+    const url = data.explanation_media_url.startsWith('http') || data.explanation_media_url.startsWith('/')
+                ? data.explanation_media_url 
+                : '/static/' + data.explanation_media_url;
+    document.getElementById('feedbackExpImg').src = url;
+    expMediaDiv.style.display = '';
+  } else {
+    expMediaDiv.style.display = 'none';
+  }
 
   const evtMap = {
     'level_up'   : `🚀 Naik ke level <strong>${data.current_level}</strong>!`,
@@ -235,7 +271,7 @@ function showFeedback(data) {
   document.getElementById('feedbackEvent').innerHTML = evtMap[data.event] || '';
 
   // Update HUD
-  const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 5 - data.nyawa));
+  const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 3 - data.nyawa));
   document.getElementById('nyawaDisplay').textContent = hearts;
   const lvlColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};
   const lvlBadge  = document.getElementById('levelDisplay');
@@ -268,8 +304,8 @@ async function nextAction() {
   currentQuestion = { id: data.question_id, type: data.type, difficulty_tier: data.difficulty_tier };
   startTime = Date.now();
 
-  // Update teks soal
-  document.getElementById('qText').textContent = data.content_text;
+  // Update teks soal (HTML dari Quill)
+  document.getElementById('qText').innerHTML = data.content_text;
 
   // Update badge tier
   const tierColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};

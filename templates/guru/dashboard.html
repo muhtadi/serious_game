@@ -2,6 +2,11 @@
 {% block title %}Dashboard Guru{% endblock %}
 
 {% block content %}
+<div class="mb-4">
+    <h4>Halo, <strong>{{ current_user.full_name or current_user.username }}</strong> 👋</h4>
+    <small class="text-muted">Status: <strong>Guru</strong></small>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Manajemen Kurikulum</h3>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreateModul">

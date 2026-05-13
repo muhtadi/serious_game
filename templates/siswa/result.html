@@ -111,7 +111,7 @@
              class="img-fluid rounded shadow-sm" style="max-height:300px; width: auto; object-fit: contain;">
       </div>
       {% endif %}
-      <p class="fs-5 fw-bold mb-3">{{ q.content_text }}</p>
+      <div class="mb-3 quill-content">{{ q.content_text | safe }}</div>
 
       <!-- Jawaban siswa -->
       <div class="mb-3">
@@ -139,9 +139,15 @@
       {% endif %}
 
       <!-- Pembahasan -->
-      {% if q.explanation %}
+      {% if q.explanation or q.explanation_media_url %}
       <div class="alert alert-light border-start border-primary border-4 py-3 px-4 mb-0 shadow-sm rounded-0 rounded-end">
-        <p class="mb-0 fs-6"><strong>💡 Pembahasan:</strong> {{ q.explanation }}</p>
+        <strong>💡 Pembahasan:</strong>
+        {% if q.explanation_media_url %}
+        <div class="mt-2 mb-3 text-center">
+          <img src="{{ q.explanation_media_url | media_url }}" class="img-fluid rounded border shadow-sm" style="max-height:400px; width:auto; object-fit:contain">
+        </div>
+        {% endif %}
+        <div class="mb-0 fs-6 quill-content">{{ q.explanation | safe }}</div>
       </div>
       {% endif %}
     {% else %}

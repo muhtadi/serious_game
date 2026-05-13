@@ -31,7 +31,7 @@
 
       <!-- Teks soal -->
       <div class="question-content mb-4">
-        <p class="fs-4 fw-bold" id="qText"></p>
+        <div id="qText" class="mb-4 quill-content"></div>
       </div>
 
       <!-- Opsi PG -->
@@ -53,6 +53,9 @@
         <strong id="feedbackTitle" class="fs-5"></strong>
       </div>
       <p id="feedbackCorrect" class="mb-1 text-muted small"></p>
+      <div id="feedbackExpMedia" class="mb-3 text-center" style="display:none">
+        <img id="feedbackExpImg" src="" class="img-fluid rounded border shadow-sm" style="max-height:400px; width:auto; object-fit:contain">
+      </div>
       <p id="feedbackExplanation" class="mb-0"></p>
     </div>
   </div>
@@ -91,7 +94,7 @@ function loadQuestion(idx) {
   document.getElementById('qLabel').textContent = 'Soal ' + (idx+1) + ' dari ' + QUESTIONS.length;
   document.getElementById('qBadge').textContent = q.type;
   document.getElementById('qBadge').className = 'badge px-3 py-2 ' + (q.type === 'PG' ? 'bg-primary' : 'bg-warning text-dark');
-  document.getElementById('qText').textContent = q.content_text;
+  document.getElementById('qText').innerHTML = q.content_text;
 
   // Media
   const mediaDiv = document.getElementById('qMedia');
@@ -208,8 +211,20 @@ function showFeedback(data, q, userAnswer) {
 
   document.getElementById('feedbackCorrect').textContent =
     isCorrect ? '' : 'Jawaban benar: ' + data.correct_text;
-  document.getElementById('feedbackExplanation').textContent =
-    data.explanation ? '💡 ' + data.explanation : '';
+  document.getElementById('feedbackExplanation').innerHTML =
+    data.explanation ? '<div class="quill-content">💡 ' + data.explanation + '</div>' : '';
+
+  // Explanation image
+  const expMediaDiv = document.getElementById('feedbackExpMedia');
+  if (data.explanation_media_url) {
+    const url = data.explanation_media_url.startsWith('http') || data.explanation_media_url.startsWith('/')
+                ? data.explanation_media_url 
+                : '/static/' + data.explanation_media_url;
+    document.getElementById('feedbackExpImg').src = url;
+    expMediaDiv.style.display = '';
+  } else {
+    expMediaDiv.style.display = 'none';
+  }
 
   // Warnai opsi PG
   if (q.type === 'PG') {

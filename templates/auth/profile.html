@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Profil Saya - Kiro One{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0">👤 Pengaturan Profil</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row mb-4 text-center">
+                        <div class="col-12">
+                            <div id="avatar-container" class="d-inline-block position-relative">
+                                {% if current_user.profile_picture %}
+                                    <img src="{{ current_user.profile_picture | media_url }}" alt="Foto Profil" class="rounded-circle img-thumbnail mb-2" style="width: 150px; height: 150px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-2" style="width: 150px; height: 150px; border: 2px solid #dee2e6;">
+                                        <span class="fs-1 text-secondary">👤</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <label for="profile_picture" class="btn btn-sm btn-outline-primary">Ubah Foto Profil</label>
+                                <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control" value="{{ current_user.username }}" 
+                                   {% if current_user.role.value == 'siswa' %}readonly style="background-color: #f8f9fa;"{% endif %} required>
+                            {% if current_user.role.value == 'siswa' %}
+                                <div class="form-text text-muted">Siswa tidak dapat mengubah username.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nama Lengkap</label>
+                            <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name or '' }}" 
+                                   {% if current_user.role.value == 'siswa' %}readonly style="background-color: #f8f9fa;"{% endif %} placeholder="Masukkan nama lengkap">
+                            {% if current_user.role.value == 'siswa' %}
+                                <div class="form-text text-muted">Hubungi guru jika nama Anda salah.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kelas</label>
+                            <input type="text" name="kelas" class="form-control" value="{{ current_user.kelas or '' }}" 
+                                   {% if current_user.role.value == 'siswa' %}readonly style="background-color: #f8f9fa;"{% endif %} placeholder="Masukkan kelas (misal: 9A)">
+                            {% if current_user.role.value == 'siswa' %}
+                                <div class="form-text text-muted">Kelas hanya dapat diubah oleh guru.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password Baru (Kosongkan jika tidak diubah)</label>
+                            <input type="password" name="password" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-primary px-4">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Preview gambar sebelum upload
+    document.getElementById('profile_picture').onchange = function (evt) {
+        var tgt = evt.target || window.event.srcElement,
+            files = tgt.files;
+
+        if (FileReader && files && files.length) {
+            var fr = new FileReader();
+            fr.onload = function () {
+                var container = document.getElementById('avatar-container');
+                container.innerHTML = '<img src="' + fr.result + '" class="rounded-circle img-thumbnail mb-2" style="width: 150px; height: 150px; object-fit: cover;">';
+            }
+            fr.readAsDataURL(files[0]);
+        }
+    }
+</script>
+{% endblock %}

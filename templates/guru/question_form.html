@@ -1,9 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}{{ 'Edit' if question else 'Tambah' }} Soal{% endblock %}
 
+{% block head %}
+<link href="{{ url_for('static', filename='quill/quill.snow.css') }}" rel="stylesheet">
+<style>
+  .ql-toolbar.ql-snow { border-radius: 6px 6px 0 0; background: #f8f9fa; }
+  .ql-container.ql-snow { border-radius: 0 0 6px 6px; font-size: 1rem; }
+  #editorContent .ql-editor   { min-height: 140px; }
+  #editorExplanation .ql-editor { min-height: 90px; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-<div class="col-md-8">
+<div class="col-md-9">
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         {{ 'Edit Soal' if question else 'Tambah Soal Baru' }} — Stage: <strong>{{ stage.title }}</strong>
@@ -11,37 +21,42 @@
     <div class="card-body">
         <form method="POST" enctype="multipart/form-data" id="questionForm">
 
+            <!-- Tipe & Kesulitan -->
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label class="form-label">Tipe Soal</label>
-                    <select class="form-select" name="type" id="typeSelect" onchange="toggleAnswerSection()">
-                        <option value="PG" {{ 'selected' if question and question.type == 'PG' else '' }}>Pilihan Ganda</option>
+                    <label class="form-label fw-semibold">Tipe Soal</label>
+                    <select class="form-select" name="type" id="typeSelect">
+                        <option value="PG"    {{ 'selected' if question and question.type == 'PG'    else '' }}>Pilihan Ganda</option>
                         <option value="Isian" {{ 'selected' if question and question.type == 'Isian' else '' }}>Isian Singkat</option>
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Tingkat Kesulitan</label>
+                    <label class="form-label fw-semibold">Tingkat Kesulitan</label>
                     <select class="form-select" name="difficulty_tier">
                         {% for d in ['Easy', 'Medium', 'Hard'] %}
-                        <option value="{{ d }}" {{ 'selected' if question and question.difficulty_tier == d else '' }}>
-                            {{ d }}
-                        </option>
+                        <option value="{{ d }}" {{ 'selected' if question and question.difficulty_tier == d else '' }}>{{ d }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
 
+            <!-- Teks Soal -->
             <div class="mb-3">
-                <label class="form-label">Teks Soal</label>
-                <textarea class="form-control" name="content_text" rows="3" required>{{ question.content_text if question else '' }}</textarea>
+                <label class="form-label fw-semibold">Teks Soal <span class="text-danger">*</span></label>
+                <div id="editorContent"
+                     data-content="{{ question.content_text | e if question else '' }}"
+                     style="background:#fff;border:1px solid #ced4da;border-radius:6px"></div>
+                <input type="hidden" name="content_text" id="inputContent">
+                <div class="form-text">Bold, italic, bullet, numbering, warna, heading, blockquote, dll.</div>
             </div>
 
+            <!-- Gambar Pendukung -->
             <div class="mb-3">
-                <label class="form-label">Gambar Pendukung (PNG/JPG/GIF, maks 5MB)</label>
+                <label class="form-label fw-semibold">Gambar Pendukung <small class="text-muted">(PNG/JPG/WebP, maks 10MB)</small></label>
                 {% if question and question.media_url %}
-                <div class="mb-2">
-                    <img src="{{ question.media_url if question.media_url.startswith('http') else url_for('static', filename=question.media_url) }}"
-                         class="img-thumbnail" style="max-height:120px">
+                <div class="mb-2 d-flex align-items-center gap-2">
+                    <img src="{{ question.media_url | media_url }}" class="img-thumbnail" style="max-height:100px">
+                    <small class="text-muted">Gambar saat ini. Upload baru untuk mengganti.</small>
                 </div>
                 {% endif %}
                 <input type="file" class="form-control" name="media" accept=".png,.jpg,.jpeg,.gif,.webp">
@@ -49,27 +64,29 @@
 
             <!-- Pilihan Ganda -->
             <div id="pgSection">
-                <label class="form-label">Opsi Jawaban</label>
+                <label class="form-label fw-semibold">Opsi Jawaban</label>
+                <div class="form-text mb-2 text-muted">Klik radio button di kiri untuk menandai jawaban benar.</div>
                 <div id="optionList">
                     {% if question and question.type == 'PG' %}
                         {% for i, ans in question.answers|enumerate %}
                         <div class="input-group mb-2 option-row">
-                            <div class="input-group-text">
-                                <input type="radio" name="correct_option" value="{{ i }}"
-                                       {{ 'checked' if ans.is_correct else '' }}>
+                            <div class="input-group-text bg-white">
+                                <input type="radio" name="correct_option" value="{{ i }}" {{ 'checked' if ans.is_correct else '' }}>
                             </div>
-                            <input type="text" class="form-control" name="option_text" value="{{ ans.text }}" placeholder="Teks opsi">
+                            <input type="text" class="form-control" name="option_text" value="{{ ans.text }}" placeholder="Teks opsi {{ i+1 }}">
                             <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>
                         </div>
                         {% endfor %}
                     {% else %}
+                        {% for i in range(4) %}
                         <div class="input-group mb-2 option-row">
-                            <div class="input-group-text">
-                                <input type="radio" name="correct_option" value="0">
+                            <div class="input-group-text bg-white">
+                                <input type="radio" name="correct_option" value="{{ i }}">
                             </div>
-                            <input type="text" class="form-control" name="option_text" placeholder="Teks opsi">
+                            <input type="text" class="form-control" name="option_text" placeholder="Opsi {{ 'ABCD'[i] }}">
                             <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>
                         </div>
+                        {% endfor %}
                     {% endif %}
                 </div>
                 <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="addOption()">+ Tambah Opsi</button>
@@ -78,21 +95,38 @@
             <!-- Isian Singkat -->
             <div id="isianSection" style="display:none">
                 <div class="mb-3">
-                    <label class="form-label">Variasi Jawaban Benar</label>
+                    <label class="form-label fw-semibold">Variasi Jawaban Benar</label>
                     <input type="text" class="form-control" name="correct_variants"
                            value="{{ question.answers|map(attribute='text')|join(', ') if question and question.type == 'Isian' else '' }}"
                            placeholder="contoh: Data, data, DATA">
-                    <div class="form-text">Pisahkan dengan koma. Validasi bersifat case-insensitive dan trim spasi.</div>
+                    <div class="form-text">Pisahkan dengan koma. Validasi case-insensitive dan trim spasi otomatis.</div>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Pembahasan / Feedback</label>
-                <textarea class="form-control" name="explanation" rows="2">{{ question.explanation if question else '' }}</textarea>
+            <!-- Pembahasan -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Pembahasan / Feedback</label>
+                <div id="editorExplanation"
+                     data-content="{{ question.explanation | e if question else '' }}"
+                     style="background:#fff;border:1px solid #ced4da;border-radius:6px"></div>
+                <input type="hidden" name="explanation" id="inputExplanation">
+                <div class="form-text">Muncul setelah siswa menjawab soal.</div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Gambar Pembahasan (Opsional)</label>
+                {% if question and question.explanation_media_url %}
+                <div class="mb-2">
+                    <img src="{{ question.explanation_media_url | media_url }}" class="img-thumbnail" style="max-height: 150px;">
+                    <p class="small text-muted">Gambar saat ini</p>
+                </div>
+                {% endif %}
+                <input type="file" class="form-control" name="explanation_media" accept="image/*">
+                <div class="form-text">Gambar pendukung untuk penjelasan solusi.</div>
             </div>
 
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Simpan Soal</button>
+                <button type="button" class="btn btn-primary px-4" onclick="submitForm()">💾 Simpan Soal</button>
                 <a href="{{ url_for('guru.question_list', stage_id=stage.id) }}" class="btn btn-secondary">Batal</a>
             </div>
         </form>
@@ -100,43 +134,104 @@
 </div>
 </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+<script src="{{ url_for('static', filename='quill/quill.min.js') }}"></script>
 <script>
-let optionCount = document.querySelectorAll('.option-row').length;
+// ── Init Quill ────────────────────────────────────────────────────────────────
+const toolbarFull = [
+  [{ header: [1, 2, 3, false] }],
+  ['bold', 'italic', 'underline', 'strike'],
+  [{ color: [] }, { background: [] }],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ indent: '-1' }, { indent: '+1' }],
+  [{ align: [] }],
+  ['blockquote', 'code-block'],
+  ['link'],
+  ['clean']
+];
 
-function toggleAnswerSection() {
-    const type = document.getElementById('typeSelect').value;
-    document.getElementById('pgSection').style.display   = type === 'PG'    ? '' : 'none';
-    document.getElementById('isianSection').style.display = type === 'Isian' ? '' : 'none';
+const toolbarSimple = [
+  ['bold', 'italic', 'underline'],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ color: [] }],
+  ['link', 'clean']
+];
+
+const quillContent = new Quill('#editorContent', {
+  theme: 'snow',
+  modules: { toolbar: toolbarFull },
+  placeholder: 'Tulis teks soal di sini...'
+});
+
+const quillExplanation = new Quill('#editorExplanation', {
+  theme: 'snow',
+  modules: { toolbar: toolbarSimple },
+  placeholder: 'Tulis pembahasan / penjelasan jawaban...'
+});
+
+// ── Isi konten awal dari data-attribute (aman dari HTML entities) ─────────────
+const contentEl     = document.getElementById('editorContent');
+const explanationEl = document.getElementById('editorExplanation');
+
+const existingContent     = contentEl.dataset.content     || '';
+const existingExplanation = explanationEl.dataset.content || '';
+
+if (existingContent)     quillContent.clipboard.dangerouslyPasteHTML(existingContent);
+if (existingExplanation) quillExplanation.clipboard.dangerouslyPasteHTML(existingExplanation);
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+function submitForm() {
+  const html = quillContent.root.innerHTML;
+  const text = quillContent.getText().trim();
+  if (!text || text === '\n') {
+    alert('Teks soal tidak boleh kosong.');
+    quillContent.focus();
+    return;
+  }
+  document.getElementById('inputContent').value     = html;
+  document.getElementById('inputExplanation').value = quillExplanation.root.innerHTML;
+  document.getElementById('questionForm').submit();
 }
 
+// ── Toggle PG / Isian ─────────────────────────────────────────────────────────
+function toggleAnswerSection() {
+  const type = document.getElementById('typeSelect').value;
+  document.getElementById('pgSection').style.display    = type === 'PG'    ? '' : 'none';
+  document.getElementById('isianSection').style.display = type === 'Isian' ? '' : 'none';
+}
+
+document.getElementById('typeSelect').addEventListener('change', toggleAnswerSection);
+
+// ── Opsi PG ───────────────────────────────────────────────────────────────────
 function addOption() {
-    const list = document.getElementById('optionList');
-    const idx  = list.querySelectorAll('.option-row').length;
-    const div  = document.createElement('div');
-    div.className = 'input-group mb-2 option-row';
-    div.innerHTML = `
-        <div class="input-group-text">
-            <input type="radio" name="correct_option" value="${idx}">
-        </div>
-        <input type="text" class="form-control" name="option_text" placeholder="Teks opsi">
-        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>`;
-    list.appendChild(div);
-    reindexOptions();
+  const list = document.getElementById('optionList');
+  const idx  = list.querySelectorAll('.option-row').length;
+  const div  = document.createElement('div');
+  div.className = 'input-group mb-2 option-row';
+  div.innerHTML = `
+    <div class="input-group-text bg-white">
+      <input type="radio" name="correct_option" value="${idx}">
+    </div>
+    <input type="text" class="form-control" name="option_text" placeholder="Opsi baru">
+    <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">✕</button>`;
+  list.appendChild(div);
+  reindexOptions();
 }
 
 function removeOption(btn) {
-    btn.closest('.option-row').remove();
-    reindexOptions();
+  btn.closest('.option-row').remove();
+  reindexOptions();
 }
 
 function reindexOptions() {
-    document.querySelectorAll('.option-row').forEach((row, i) => {
-        row.querySelector('input[type=radio]').value = i;
-    });
+  document.querySelectorAll('.option-row').forEach((row, i) => {
+    row.querySelector('input[type=radio]').value = i;
+  });
 }
 
-// Init on load
+// ── Init ──────────────────────────────────────────────────────────────────────
 toggleAnswerSection();
 </script>
 {% endblock %}

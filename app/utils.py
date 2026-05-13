@@ -2,7 +2,12 @@ from functools import wraps
 from flask import abort, current_app, request, jsonify
 from flask_login import current_user
 import os, uuid, io, requests as http_requests
-from PIL import Image
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 def role_required(*roles):
     """Decorator untuk membatasi akses berdasarkan role."""
@@ -127,15 +132,12 @@ def save_upload(file, allowed_set):
         current_app.logger.error("Upload error: file data kosong")
         return None
 
-    # Kompresi gambar → WebP
+    # Kompresi gambar → WebP (hanya jika Pillow tersedia)
     image_exts = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-    if ext in image_exts:
+    if ext in image_exts and PIL_AVAILABLE:
         try:
             file_data, ext = _compress_image(file_data)
-            original_size = len(file.read()) if hasattr(file, 'read') else 0
-            current_app.logger.info(
-                f"Gambar dikompres ke WebP: {len(file_data)/1024:.1f} KB"
-            )
+            current_app.logger.info(f"Gambar dikompres ke WebP: {len(file_data)/1024:.1f} KB")
         except Exception as e:
             current_app.logger.warning(f"Kompresi gambar gagal, pakai original: {e}")
 
@@ -147,7 +149,7 @@ def save_upload(file, allowed_set):
     mime_type = mime_map.get(ext, 'application/octet-stream')
     filename  = f"{uuid.uuid4().hex}.{ext}"
 
-    supabase_url = current_app.config.get('SUPABASE_URL', '').rstrip('/')
+    supabase_url = (current_app.config.get('SUPABASE_URL') or '').rstrip('/')
     supabase_key = current_app.config.get('SUPABASE_KEY', '')
     bucket       = current_app.config.get('SUPABASE_BUCKET', 'media')
 

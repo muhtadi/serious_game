@@ -1,3 +1,5 @@
+import csv
+import io
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from app import db, bcrypt
@@ -28,6 +30,70 @@ def user_management():
     users = User.query.order_by(User.role, User.username).all()
     return render_template('admin/user_management.html', users=users)
 
+@admin_bp.route('/bulk-upload-users', methods=['POST'])
+@login_required
+@role_required('admin')
+def bulk_upload_users():
+    if 'file' not in request.files:
+        flash('Tidak ada file yang diunggah.', 'danger')
+        return redirect(url_for('admin.user_management'))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('Nama file kosong.', 'danger')
+        return redirect(url_for('admin.user_management'))
+    
+    if not file.filename.endswith('.csv'):
+        flash('Format file harus CSV.', 'danger')
+        return redirect(url_for('admin.user_management'))
+
+    try:
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_input = csv.DictReader(stream)
+        
+        success_count = 0
+        error_count = 0
+        
+        for row in csv_input:
+            username  = row.get('username', '').strip()
+            password  = row.get('password', '').strip()
+            full_name = row.get('full_name', '').strip()
+            kelas     = row.get('kelas', '').strip()
+            role_str  = row.get('role', 'siswa').strip().lower()
+            
+            if not username or not password:
+                error_count += 1
+                continue
+            
+            if User.query.filter_by(username=username).first():
+                error_count += 1
+                continue
+                
+            try:
+                role_enum = RoleEnum(role_str)
+            except ValueError:
+                role_enum = RoleEnum.siswa
+                
+            hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+            new_user = User(
+                username=username, 
+                password=hashed_pw, 
+                role=role_enum,
+                full_name=full_name if full_name else None,
+                kelas=kelas if kelas else None
+            )
+            db.session.add(new_user)
+            success_count += 1
+            
+        db.session.commit()
+        flash(f'Berhasil mengimpor {success_count} user. Gagal: {error_count}.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Terjadi kesalahan saat mengolah file: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.user_management'))
+
 @admin_bp.route('/create-user', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -55,6 +121,47 @@ def create_user():
     db.session.add(new_user)
     db.session.commit()
     flash(f'Akun "{username}" berhasil dibuat sebagai {role}.', 'success')
+    return redirect(url_for('admin.user_management'))
+
+@admin_bp.route('/update-user/<int:user_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def update_user(user_id):
+    user = User.query.get_or_404(user_id)
+    username  = request.form.get('username', '').strip()
+    full_name = request.form.get('full_name', '').strip()
+    kelas     = request.form.get('kelas', '').strip()
+    role_str  = request.form.get('role', user.role.value).strip()
+
+    if not username:
+        flash('Username tidak boleh kosong.', 'danger')
+        return redirect(url_for('admin.user_management'))
+
+    if username != user.username:
+        if User.query.filter_by(username=username).first():
+            flash('Username sudah digunakan user lain.', 'danger')
+            return redirect(url_for('admin.user_management'))
+        user.username = username
+
+    user.full_name = full_name if full_name else None
+    user.kelas     = kelas if kelas else None
+    
+    try:
+        user.role = RoleEnum(role_str)
+    except ValueError:
+        pass
+
+    # Profile Picture
+    if 'profile_picture' in request.files:
+        from app.utils import save_upload
+        file = request.files['profile_picture']
+        if file and file.filename != '':
+            url = save_upload(file, {'png', 'jpg', 'jpeg', 'webp'})
+            if url:
+                user.profile_picture = url
+
+    db.session.commit()
+    flash(f'User "{user.username}" berhasil diperbarui.', 'success')
     return redirect(url_for('admin.user_management'))
 
 @admin_bp.route('/reset-password/<int:user_id>', methods=['POST'])

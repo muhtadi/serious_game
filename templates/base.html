@@ -5,9 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Serious Game CT{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% block head %}{% endblock %}
     <style>
         body { background-color: #f0f4f8; }
         .navbar-brand { font-weight: bold; }
+
+        /* Styling konten dari Quill editor (tampilan siswa) */
+        .quill-content h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .5rem; }
+        .quill-content h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: .5rem; }
+        .quill-content h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: .4rem; }
+        .quill-content p  { margin-bottom: .5rem; }
+        .quill-content ul, .quill-content ol { padding-left: 1.5rem; margin-bottom: .5rem; }
+        .quill-content li { margin-bottom: .2rem; }
+        .quill-content strong { font-weight: 700; }
+        .quill-content em    { font-style: italic; }
+        .quill-content u     { text-decoration: underline; }
+        .quill-content s     { text-decoration: line-through; }
+        .quill-content blockquote {
+            border-left: 4px solid #0d6efd;
+            padding-left: 1rem;
+            color: #555;
+            margin: .5rem 0;
+        }
+        .quill-content pre.ql-syntax {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: .75rem 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .quill-content a { color: #0d6efd; }
+        .quill-content .ql-align-center { text-align: center; }
+        .quill-content .ql-align-right  { text-align: right; }
+        .quill-content .ql-align-justify{ text-align: justify; }
+        .quill-content .ql-indent-1 { padding-left: 2rem; }
+        .quill-content .ql-indent-2 { padding-left: 4rem; }
+        .quill-content .ql-indent-3 { padding-left: 6rem; }
     </style>
 </head>
 <body>
@@ -62,9 +96,16 @@
                     {% endif %}
                 </ul>
                 <div class="d-flex align-items-center">
-                    <span class="navbar-text text-white me-3">
-                        Halo, {{ current_user.username }} ({{ current_user.role.value }})
-                    </span>
+                    <a href="{{ url_for('auth.profile') }}" class="text-white text-decoration-none me-3 d-flex align-items-center">
+                        {% if current_user.profile_picture %}
+                            <img src="{{ current_user.profile_picture | media_url }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid white;">
+                        {% else %}
+                            <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 14px;">
+                                👤
+                            </div>
+                        {% endif %}
+                        <span>{{ current_user.full_name or current_user.username }}</span>
+                    </a>
                     <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
                 </div>
             </div>

@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import (Modul, Stage, Question, Answer, User,
+from app.models import (Modul, Stage, Question, Answer, User, RoleEnum,
                         GameSession, AttemptLog, StageCompletion, ChallengeUnlock,
                         MODE_PRACTICE, MODE_CHALLENGE, LEVEL_ORDER)
 from app.utils import role_required, get_student_competency_data
 from datetime import datetime, timezone
+from sqlalchemy import func
 import json, random
 
 siswa_bp = Blueprint('siswa', __name__)
@@ -35,25 +36,30 @@ def dashboard():
         ChallengeUnlock.query.filter_by(user_id=current_user.id, used=False).all()
     }
 
-    # Path log per stage: {stage_id: [{'is_correct': bool}, ...]}
-    # Ambil dari sesi terakhir per stage (practice atau challenge)
+    # Path log per stage dan Session ID terakhir untuk Review
     stage_paths = {}
+    last_session_ids = {}
     all_sessions = GameSession.query.filter_by(user_id=current_user.id)\
                                     .order_by(GameSession.attempt_number.desc()).all()
     seen_stages = set()
     for sess in all_sessions:
         if sess.stage_id not in seen_stages:
             seen_stages.add(sess.stage_id)
+            last_session_ids[sess.stage_id] = sess.id
             logs = AttemptLog.query.filter_by(session_id=sess.id)\
                                    .order_by(AttemptLog.timestamp).all()
-            stage_paths[sess.stage_id] = [{'is_correct': l.is_correct} for l in logs]
+            stage_paths[sess.stage_id] = [
+                {'is_correct': l.is_correct, 'level': l.level_at_attempt} 
+                for l in logs
+            ]
 
     return render_template('siswa/dashboard.html',
                            moduls=moduls,
                            challenge_best=challenge_best,
                            active_challenge=active_challenge,
                            unlocks=unlocks,
-                           stage_paths=stage_paths)
+                           stage_paths=stage_paths,
+                           last_session_ids=last_session_ids)
 
 # ── Mulai Sesi ─────────────────────────────────────────────────────────────────
 @siswa_bp.route('/stage/<int:stage_id>/start', methods=['POST'])
@@ -100,7 +106,7 @@ def stage_start(stage_id):
     sess = GameSession(
         user_id=current_user.id, stage_id=stage_id,
         mode=mode, attempt_number=attempt_num,
-        current_level='Easy', nyawa=5, wrong_streak=0,
+        current_level='Easy', nyawa=3, wrong_streak=0,
         is_active=True, is_cleared=False,
         used_question_ids='[]'
     )
@@ -232,6 +238,7 @@ def game_submit(session_id):
         'is_correct'   : is_correct,
         'correct_text' : correct_text,
         'explanation'  : q.explanation or '',  # selalu kirim pembahasan
+        'explanation_media_url': q.explanation_media_url or None,
         'hint'         : hint,
         'event'        : event,
         'nyawa'        : max(0, sess.nyawa),
@@ -285,54 +292,67 @@ def game_next(session_id):
         'difficulty_tier': q.difficulty_tier,
         'answers'      : answers_data
     })
+
+@siswa_bp.route('/leaderboard/<int:stage_id>')
 @login_required
 @role_required('siswa')
 def leaderboard(stage_id):
     stage = Stage.query.get_or_404(stage_id)
     
-    # Ranking: 1. Score (Mastery), 2. Level Max, 3. Time
-    rows = StageCompletion.query.filter(
-        StageCompletion.stage_id == stage_id,
-        StageCompletion.mode == MODE_CHALLENGE
-    ).order_by(
-        StageCompletion.score.desc(),
-        StageCompletion.final_level_reached.desc(),
-        StageCompletion.total_time_seconds.asc()
-    ).limit(100).all()
+    # Ambil semua percobaan di stage ini (Challenge Mode)
+    all_rows = StageCompletion.query.filter_by(
+        stage_id=stage_id,
+        mode=MODE_CHALLENGE
+    ).order_by(StageCompletion.score.desc(), StageCompletion.total_time_seconds.asc()).all()
 
-    my_best = StageCompletion.query.filter_by(
-        user_id=current_user.id, stage_id=stage_id, mode=MODE_CHALLENGE
-    ).order_by(StageCompletion.score.desc()).first()
+    # Filter unik per user (ambil yang terbaik saja)
+    seen_users = set()
+    rows = []
+    for r in all_rows:
+        if r.user_id not in seen_users:
+            rows.append(r)
+            seen_users.add(r.user_id)
 
-    return render_template('siswa/leaderboard.html',
-                           stage=stage, rows=rows, my_best=my_best)
+    return render_template('siswa/leaderboard.html', stage=stage, rows=rows)
 
 # ── Leaderboard Global ───────────────────────────────────────────────────────
 @siswa_bp.route('/leaderboards')
 @login_required
 @role_required('siswa')
 def leaderboards():
-    """Semua leaderboard per stage."""
+    """Semua leaderboard per stage + Peringkat Global."""
+    # 1. Peringkat Global
+    global_users = User.query.filter(User.role == RoleEnum.siswa)\
+                             .order_by(User.total_points.desc()).all()
+
+    # 2. Ringkasan Top 5 per Stage
     stages = Stage.query.filter_by(is_active=True).order_by(Stage.order_index).all()
     leaderboard_data = []
     for stage in stages:
-        # Ambil top 5 per stage tanpa filter
-        rows = StageCompletion.query.filter(
-            StageCompletion.stage_id == stage.id,
-            StageCompletion.mode == MODE_CHALLENGE
-        ).order_by(
-            StageCompletion.score.desc(),
-            StageCompletion.accuracy.desc(),
-            StageCompletion.total_time_seconds.asc()
-        ).limit(5).all()
-        # Attach user info
-        for r in rows:
-            r._user = User.query.get(r.user_id)
+        all_comp = StageCompletion.query.filter_by(
+            stage_id=stage.id,
+            mode=MODE_CHALLENGE
+        ).order_by(StageCompletion.score.desc(), StageCompletion.total_time_seconds.asc()).all()
+
+        seen_users = set()
+        top_rows = []
+        for r in all_comp:
+            if r.user_id not in seen_users:
+                # Attach user secara manual untuk memastikan aman di template
+                r._user = User.query.get(r.user_id)
+                top_rows.append(r)
+                seen_users.add(r.user_id)
+            if len(top_rows) >= 5:
+                break
+            
         leaderboard_data.append({
             'stage': stage,
-            'rows': rows
+            'rows': top_rows
         })
-    return render_template('siswa/leaderboards.html', leaderboard_data=leaderboard_data)
+
+    return render_template('siswa/leaderboards.html', 
+                           global_users=global_users,
+                           leaderboard_data=leaderboard_data)
 
 # ── Analytics Siswa ──────────────────────────────────────────────────────────
 @siswa_bp.route('/analytics')

@@ -38,6 +38,11 @@ class User(db.Model, UserMixin):
     role         = db.Column(db.Enum(RoleEnum), nullable=False, default=RoleEnum.siswa)
     total_points = db.Column(db.Integer, default=0)
 
+    # New profile fields
+    full_name       = db.Column(db.String(100), nullable=True)
+    kelas           = db.Column(db.String(20), nullable=True)
+    profile_picture = db.Column(db.String(255), nullable=True)
+
 # ── Kurikulum ──────────────────────────────────────────────────────────────────
 class Modul(db.Model):
     __tablename__ = 'moduls'
@@ -92,6 +97,7 @@ class Question(db.Model):
     content_text    = db.Column(db.Text, nullable=False)
     media_url       = db.Column(db.String(255), nullable=True)
     explanation     = db.Column(db.Text, nullable=True)
+    explanation_media_url = db.Column(db.String(255), nullable=True)
     is_active       = db.Column(db.Boolean, default=True)
 
     answers = db.relationship('Answer', backref='question', lazy=True,

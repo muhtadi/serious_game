@@ -11,14 +11,19 @@
 </div>
 
 <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">Daftar Siswa</div>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span>Daftar Siswa</span>
+        <small class="opacity-75">Klik judul kolom untuk menyortir</small>
+    </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0" id="studentTable">
             <thead class="table-light">
                 <tr>
-                    <th>Username</th>
-                    <th>Total Poin</th>
-                    <th>Stage Diselesaikan</th>
+                    <th onclick="sortTable(0)" style="cursor:pointer">Nama Lengkap ↕</th>
+                    <th onclick="sortTable(1)" style="cursor:pointer">Username ↕</th>
+                    <th onclick="sortTable(2)" style="cursor:pointer">Kelas ↕</th>
+                    <th onclick="sortTable(3)" style="cursor:pointer">Total Poin ↕</th>
+                    <th class="text-center">Stage Selesai</th>
                     <th>Aktivitas Terakhir</th>
                     <th>Aksi</th>
                 </tr>
@@ -26,14 +31,16 @@
             <tbody>
                 {% for student in students %}
                 <tr>
-                    <td>{{ student.username }}</td>
-                    <td>{{ student.total_points }}</td>
-                    <td>{{ student.completion_count }}</td>
+                    <td><strong>{{ student.full_name or '-' }}</strong></td>
+                    <td><code>{{ student.username }}</code></td>
+                    <td>{{ student.kelas or '-' }}</td>
+                    <td data-value="{{ student.total_points }}"><span class="badge bg-primary">{{ student.total_points }}</span></td>
+                    <td class="text-center">{{ student.completion_count }}</td>
                     <td>
                         {% if student.last_activity %}
-                        {{ student.last_activity.completed_at.strftime('%d/%m/%Y %H:%M') }}
+                        <span class="small">{{ student.last_activity.completed_at.strftime('%d/%m/%y %H:%M') }}</span>
                         {% else %}
-                        <span class="text-muted">-</span>
+                        <span class="text-muted small">-</span>
                         {% endif %}
                     </td>
                     <td>
@@ -41,10 +48,57 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center text-muted">Belum ada data siswa.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted">Belum ada data siswa.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+function sortTable(n) {
+  var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+  table = document.getElementById("studentTable");
+  switching = true;
+  dir = "asc"; 
+  while (switching) {
+    switching = false;
+    rows = table.rows;
+    for (i = 1; i < (rows.length - 1); i++) {
+      shouldSwitch = false;
+      x = rows[i].getElementsByTagName("TD")[n];
+      y = rows[i + 1].getElementsByTagName("TD")[n];
+      
+      let valX = x.getAttribute('data-value') || x.innerText.toLowerCase();
+      let valY = y.getAttribute('data-value') || y.innerText.toLowerCase();
+      
+      // Cek jika numerik
+      if (!isNaN(parseFloat(valX)) && !isNaN(valX - 0)) valX = parseFloat(valX);
+      if (!isNaN(parseFloat(valY)) && !isNaN(valY - 0)) valY = parseFloat(valY);
+
+      if (dir == "asc") {
+        if (valX > valY) {
+          shouldSwitch = true;
+          break;
+        }
+      } else if (dir == "desc") {
+        if (valX < valY) {
+          shouldSwitch = true;
+          break;
+        }
+      }
+    }
+    if (shouldSwitch) {
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+      switchcount ++;      
+    } else {
+      if (switchcount == 0 && dir == "asc") {
+        dir = "desc";
+        switching = true;
+      }
+    }
+  }
+}
+</script>
 {% endblock %}

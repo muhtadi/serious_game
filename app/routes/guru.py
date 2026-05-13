@@ -181,7 +181,8 @@ def question_edit(question_id):
     q = Question.query.get_or_404(question_id)
     if request.method == 'POST':
         content = request.form.get('content_text', '').strip()
-        if not content:
+        import re
+        if not re.sub(r'<[^>]+>', '', content).strip():
             flash('Teks soal tidak boleh kosong.', 'danger')
             return redirect(request.url)
         q.content_text = content
@@ -193,6 +194,12 @@ def question_edit(question_id):
         img_name = save_upload(img_file, current_app.config['ALLOWED_IMAGE'])
         if img_name:
             q.media_url = img_name
+
+        # Explanation image
+        exp_img_file = request.files.get('explanation_media')
+        exp_img_name = save_upload(exp_img_file, current_app.config['ALLOWED_IMAGE'])
+        if exp_img_name:
+            q.explanation_media_url = exp_img_name
 
         # Hapus jawaban lama, simpan yang baru
         Answer.query.filter_by(question_id=q.id).delete()
@@ -256,18 +263,28 @@ def _apply_curriculum(stage, form):
 
 def _build_question(req, stage_id):
     content = req.form.get('content_text', '').strip()
-    if not content:
+    # Quill mengirim '<p><br></p>' untuk editor kosong — strip tags untuk validasi
+    from markupsafe import Markup
+    import re
+    content_text_only = re.sub(r'<[^>]+>', '', content).strip()
+    if not content_text_only:
         flash('Teks soal tidak boleh kosong.', 'danger')
         return None
     img_file = req.files.get('media')
     img_name = save_upload(img_file, current_app.config['ALLOWED_IMAGE'])
+    
+    # Explanation image
+    exp_img_file = req.files.get('explanation_media')
+    exp_img_name = save_upload(exp_img_file, current_app.config['ALLOWED_IMAGE'])
+    
     return Question(
         stage_id=stage_id,
         content_text=content,
         difficulty_tier=req.form.get('difficulty_tier', 'Easy'),
         type=req.form.get('type', 'PG'),
         explanation=req.form.get('explanation', '').strip(),
-        media_url=img_name if img_name else None
+        media_url=img_name if img_name else None,
+        explanation_media_url=exp_img_name if exp_img_name else None
     )
 
 def _save_answers(question, form):

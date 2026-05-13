@@ -1,42 +1,104 @@
 {% extends 'base.html' %}
-{% block title %}Semua Leaderboard{% endblock %}
+{% block title %}Peringkat & Leaderboard{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">🏆 Leaderboard</h2>
+<h2 class="mb-4 text-center">🏆 Peringkat Umum & Leaderboard</h2>
 
-{% for ld in leaderboard_data %}
-<div class="card mb-3 shadow-sm">
-    <div class="card-header bg-warning bg-opacity-25">
-        <strong>{{ ld.stage.title }}</strong>
-        <span class="badge bg-secondary ms-2">{{ ld.stage.mode }}</span>
+<div class="row">
+    <!-- Kolom Kiri: Peringkat Global (Semua Siswa) -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">🌍 Peringkat Global</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>#</th>
+                                <th>Siswa</th>
+                                <th class="text-end">Total Poin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in global_users %}
+                            <tr class="{{ 'table-primary fw-bold' if u.id == current_user.id else '' }}">
+                                <td>
+                                    {% if loop.index == 1 %}🥇
+                                    {% elif loop.index == 2 %}🥈
+                                    {% elif loop.index == 3 %}🥉
+                                    {% else %}{{ loop.index }}{% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if u.profile_picture %}
+                                            <img src="{{ u.profile_picture | media_url }}" class="rounded-circle me-2" style="width: 24px; height: 24px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 10px; border: 1px solid #ddd;">👤</div>
+                                        {% endif %}
+                                        <span class="text-truncate" style="max-width: 120px;">{{ u.full_name or u.username }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end text-primary">{{ u.total_points }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-center small text-muted">
+                Poin dihitung dari skor terbaik di tiap Challenge.
+            </div>
+        </div>
     </div>
-    <div class="card-body p-0">
-        {% if ld.rows %}
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr><th>#</th><th>Siswa</th><th>Skor</th><th>Mastery</th><th>Waktu</th></tr>
-            </thead>
-            <tbody>
-            {% for r in ld.rows %}
-            <tr class="{{ 'table-warning' if r.user_id == current_user.id else '' }}">
-                <td>{{ loop.index }}</td>
-                <td>
-                    {% if r._user %}{{ r._user.username }}{% else %}Unknown{% endif %}
-                    {% if r.user_id == current_user.id %}<span class="badge bg-primary">Kamu</span>{% endif %}
-                </td>
-                <td><strong>{{ r.score }}</strong></td>
-                <td>{{ r.mastery_percentage }}%</td>
-                <td class="text-muted small">{{ r.completed_at.strftime('%d/%m %H:%M') if r.completed_at else '-' }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted p-3 mb-0">Belum ada yang menyelesaikan challenge.</p>
-        {% endif %}
+
+    <!-- Kolom Kanan: Leaderboard per Stage (Top 5) -->
+    <div class="col-lg-8">
+        <h5 class="mb-3">🏁 Top 5 Per Stage</h5>
+        {% for ld in leaderboard_data %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ ld.stage.title }}</strong>
+                    <span class="badge bg-secondary ms-2 small">{{ ld.stage.mode }}</span>
+                </div>
+                <a href="{{ url_for('siswa.leaderboard', stage_id=ld.stage.id) }}" class="btn btn-sm btn-outline-dark">Lihat Semua →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if ld.rows %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Siswa</th>
+                            <th>Skor</th>
+                            <th>Max Level</th>
+                            <th class="text-end">Waktu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for r in ld.rows %}
+                    <tr class="{{ 'table-warning' if r.user_id == current_user.id else '' }}">
+                        <td class="ps-3">{{ loop.index }}</td>
+                        <td>{{ r._user.full_name or r._user.username if r._user else 'Unknown' }}</td>
+                        <td><strong>{{ r.score }}</strong></td>
+                        <td>
+                            <span class="badge {{ 'bg-success' if r.final_level_reached == 'Easy' else ('bg-warning text-dark' if r.final_level_reached == 'Medium' else 'bg-danger') }} px-2 py-1" style="font-size: 0.75rem;">
+                                {{ r.final_level_reached }}
+                            </span>
+                        </td>
+                        <td class="text-end pe-3 text-muted small">{{ r.completed_at.strftime('%d/%m %H:%M') if r.completed_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted p-3 mb-0 italic">Belum ada aktivitas di stage ini.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
-{% else %}
-<div class="alert alert-info">Belum ada leaderboard.</div>
-{% endfor %}
 {% endblock %}

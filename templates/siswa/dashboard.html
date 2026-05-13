@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <h4>Halo, <strong>{{ current_user.username }}</strong> 👋</h4>
+    <h4>Halo, <strong>{{ current_user.full_name or current_user.username }}</strong> 👋</h4>
     <small class="text-muted">Total Poin: <strong>{{ current_user.total_points }}</strong></small>
   </div>
 </div>
@@ -61,9 +61,10 @@
             <div class="d-flex flex-wrap gap-1 mt-2 mb-1">
               {% for i in range(total_q) %}
                 {% if i < path|length %}
-                  <span style="width:13px;height:13px;border-radius:50%;display:inline-block;
-                    background:{{ '#198754' if path[i].is_correct else '#dc3545' }};"
-                    title="{{ 'Benar' if path[i].is_correct else 'Salah' }}"></span>
+                  {% set item = path[i] %}
+                  <span style="width:13px;height:13px;border-radius:50%;display:inline-block;cursor:help;
+                    background:{{ '#198754' if item.is_correct else '#dc3545' }};"
+                    title="Soal #{{ i+1 }}: {{ 'Benar' if item.is_correct else 'Salah' }} ({{ item.level }})"></span>
                 {% else %}
                   <span style="width:13px;height:13px;border-radius:50%;display:inline-block;
                     background:#adb5bd;" title="Belum dikerjakan"></span>
@@ -72,8 +73,16 @@
             </div>
             {% endif %}
           </div>
-          <div class="card-footer p-2 d-flex gap-1">
-            <form method="POST" action="{{ url_for('siswa.stage_start', stage_id=stage.id) }}" class="flex-grow-1">
+          <div class="card-footer p-2 d-flex gap-1 flex-wrap">
+            {% set last_sess_id = last_session_ids.get(stage.id) %}
+            {% if last_sess_id %}
+              <a href="{{ url_for('siswa.stage_result', session_id=last_sess_id) }}" 
+                 class="btn btn-sm btn-outline-dark flex-grow-1" style="font-size: 0.75rem;">
+                🔍 Review Jawaban
+              </a>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('siswa.stage_start', stage_id=stage.id) }}" class="w-100 mt-1">
               {% set has_active = active_challenge.get(stage.id) %}
               {% set has_unlock = stage.id in unlocks %}
               {% set is_challenge = stage.mode == 'challenge' %}
@@ -87,7 +96,7 @@
             </form>
             {% if comp and comp.is_cleared and is_challenge %}
             <a href="{{ url_for('siswa.leaderboard', stage_id=stage.id) }}"
-               class="btn btn-outline-secondary btn-sm">🏆</a>
+               class="btn btn-outline-secondary btn-sm w-100 mt-1">🏆 Lihat Peringkat</a>
             {% endif %}
           </div>
         </div>
