@@ -1,0 +1,21 @@
+<div id="npc-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; transition: all 0.5s ease;">
+    <img id="npc-avatar" src="https://cdn-icons-png.flaticon.com/128/3048/3048122.png" alt="NPC" style="width: 120px; height: 120px; transition: transform 0.3s ease;">
+</div>
+
+<script>
+    const npcAvatar = document.getElementById('npc-avatar');
+    // Using generic open-source icons for testing
+    const npcStates = {
+        idle: 'https://cdn-icons-png.flaticon.com/128/3048/3048122.png',
+        happy: 'https://cdn-icons-png.flaticon.com/128/3048/3048104.png',
+        sad: 'https://cdn-icons-png.flaticon.com/128/3048/3048129.png'
+    };
+
+    function updateNPC(state) {
+        if (npcStates[state]) {
+            npcAvatar.src = npcStates[state];
+            npcAvatar.style.transform = 'scale(1.2)';
+            setTimeout(() => { npcAvatar.style.transform = 'scale(1)'; }, 500);
+        }
+    }
+</script>

@@ -118,6 +118,8 @@
     </div>
   </div>
 
+  {% include 'siswa/npc_component.html' %}
+
   <!-- Feedback (Practice: langsung; Challenge: hanya benar/salah) -->
   <div id="feedbackPanel" class="card mt-3 shadow-sm" style="display:none;border-radius:12px">
     <div class="card-body">
@@ -284,10 +286,15 @@ function showFeedback(data) {
   const panel = document.getElementById('feedbackPanel');
   panel.style.display = '';
   const ok = data.is_correct;
+  
+  // NPC Interaction
+  updateNPC(ok ? 'happy' : 'sad');
+  setTimeout(() => updateNPC('idle'), 3000);
 
   panel.className = `card mt-3 shadow-sm border-${ok ? 'success' : 'danger'}`;
   panel.querySelector('.card-body').className =
     `card-body bg-${ok ? 'success' : 'danger'} bg-opacity-10`;
+
 
   document.getElementById('feedbackIcon').textContent  = ok ? '✅' : '❌';
   document.getElementById('feedbackTitle').textContent = ok ? 'Benar!' : 'Kurang tepat';
