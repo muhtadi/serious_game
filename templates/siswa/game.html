@@ -45,6 +45,15 @@
         {{ sess.current_level }}
       </span>
     </div>
+    <div class="text-center">
+      <span class="text-muted small">Skor Saat Ini</span><br>
+      <strong id="scoreDisplay" class="fs-4 text-primary">{{ temp_score }}</strong>
+    </div>
+    <div class="text-center">
+      <span class="text-muted small">Waktu Soal</span><br>
+      <strong id="timerDisplay" class="fs-4 text-danger">00:00</strong>
+      <div id="targetTimerInfo" class="x-small text-muted" style="font-size: 0.7rem;"></div>
+    </div>
     <div class="text-end">
       <span class="text-muted small">Mastery</span><br>
       <strong id="masteryDisplay" class="fs-4">{{ temp_mastery }}%</strong>
@@ -166,6 +175,8 @@ const SUBMIT_URL   = "{{ url_for('siswa.game_submit', session_id=sess.id) }}";
 const NEXT_URL     = "{{ url_for('siswa.game_next', session_id=sess.id) }}";
 const IS_PRACTICE  = {{ 'true' if is_practice else 'false' }};
 
+const TARGET_TIMES = { 'Easy': 30, 'Medium': 60, 'Hard': 120 };
+
 // State soal saat ini (bisa diupdate tanpa reload)
 let currentQuestion = {
   id   : {{ question.id }},
@@ -174,9 +185,44 @@ let currentQuestion = {
 };
 
 let startTime     = Date.now();
+let timerInterval = null;
 let resultUrl     = null;
 let answeredCount = 0;
 let correctCount  = 0;
+
+function updateTimer() {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  const display = document.getElementById('timerDisplay');
+  display.textContent = `${m}:${s}`;
+
+  const target = TARGET_TIMES[currentQuestion.difficulty_tier] || 60;
+  const infoEl = document.getElementById('targetTimerInfo');
+  
+  if (elapsed < target) {
+    display.className = 'fs-4 text-success';
+    infoEl.textContent = `Bonus: On (${target - elapsed}s left)`;
+    infoEl.className = 'x-small text-success';
+  } else {
+    display.className = 'fs-4 text-muted';
+    infoEl.textContent = 'Bonus: Off';
+    infoEl.className = 'x-small text-muted';
+  }
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+}
+
+// Start timer on load
+startTimer();
 
 function selectOption(btn) {
   document.querySelectorAll('.option-btn').forEach(b => {
@@ -189,6 +235,7 @@ function selectOption(btn) {
 }
 
 async function submitAnswer() {
+  stopTimer(); // Hentikan timer saat submit
   document.getElementById('btnCheck').disabled = true;
   let answer = '';
   if (currentQuestion.type === 'PG') {
@@ -273,6 +320,11 @@ function showFeedback(data) {
   // Update HUD
   const hearts = '❤️'.repeat(Math.max(0, data.nyawa)) + '🖤'.repeat(Math.max(0, 3 - data.nyawa));
   document.getElementById('nyawaDisplay').textContent = hearts;
+  
+  if (data.current_score !== undefined) {
+    document.getElementById('scoreDisplay').textContent = data.current_score;
+  }
+
   const lvlColors = {Easy:'bg-success', Medium:'bg-warning text-dark', Hard:'bg-danger'};
   const lvlBadge  = document.getElementById('levelDisplay');
   lvlBadge.textContent = data.current_level;
@@ -355,6 +407,8 @@ async function nextAction() {
   document.getElementById('btnCheck').disabled = true;
   document.getElementById('btnCheck').style.display = '';
   document.getElementById('btnNext').style.display = 'none';
+
+  startTimer(); // Mulai ulang timer untuk soal baru
 }
 </script>
 

@@ -2,10 +2,11 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app import db
 from app.models import (Modul, Stage, Question, Answer, User,
-                        ChallengeUnlock, StageCompletion, AttemptLog,
+                        ChallengeUnlock, StageCompletion, AttemptLog, GameSession,
                         CURRICULUM_KEYS, CT_SKILL_KEYS, KELAS_CHOICES, DIFFICULTY_CHOICES,
                         MODE_CHALLENGE, MODE_PRACTICE)
 from app.utils import role_required, save_upload
+from sqlalchemy import func
 import os
 
 guru_bp = Blueprint('guru', __name__)
@@ -96,14 +97,11 @@ def stage_create(modul_id):
             difficulty=request.form.get('difficulty') or None,
             mode=request.form.get('mode', 'practice'),
         )
-        _apply_curriculum(stage, request.form)
         db.session.add(stage)
         db.session.commit()
         flash(f'Stage "{title}" berhasil dibuat.', 'success')
         return redirect(url_for('guru.dashboard'))
     return render_template('guru/stage_form.html', modul=modul, stage=None,
-                           curriculum_keys=CURRICULUM_KEYS,
-                           ct_skill_keys=CT_SKILL_KEYS,
                            kelas_choices=KELAS_CHOICES,
                            difficulty_choices=DIFFICULTY_CHOICES)
 
@@ -129,13 +127,10 @@ def stage_edit(stage_id):
         if image_filename:
             stage.image_url = image_filename
 
-        _apply_curriculum(stage, request.form)
         db.session.commit()
         flash('Stage berhasil diperbarui.', 'success')
         return redirect(url_for('guru.dashboard'))
     return render_template('guru/stage_form.html', modul=stage.modul, stage=stage,
-                           curriculum_keys=CURRICULUM_KEYS,
-                           ct_skill_keys=CT_SKILL_KEYS,
                            kelas_choices=KELAS_CHOICES,
                            difficulty_choices=DIFFICULTY_CHOICES)
 
@@ -166,13 +161,16 @@ def question_create(stage_id):
         q = _build_question(request, stage_id)
         if q is None:
             return redirect(request.url)
+        _apply_curriculum(q, request.form)
         db.session.add(q)
         db.session.flush()  # dapat q.id sebelum commit
         _save_answers(q, request.form)
         db.session.commit()
         flash('Soal berhasil ditambahkan.', 'success')
         return redirect(url_for('guru.question_list', stage_id=stage_id))
-    return render_template('guru/question_form.html', stage=stage, question=None)
+    return render_template('guru/question_form.html', stage=stage, question=None,
+                           curriculum_keys=CURRICULUM_KEYS,
+                           ct_skill_keys=CT_SKILL_KEYS)
 
 @guru_bp.route('/question/<int:question_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -201,13 +199,17 @@ def question_edit(question_id):
         if exp_img_name:
             q.explanation_media_url = exp_img_name
 
+        _apply_curriculum(q, request.form)
+
         # Hapus jawaban lama, simpan yang baru
         Answer.query.filter_by(question_id=q.id).delete()
         _save_answers(q, request.form)
         db.session.commit()
         flash('Soal berhasil diperbarui.', 'success')
         return redirect(url_for('guru.question_list', stage_id=q.stage_id))
-    return render_template('guru/question_form.html', stage=q.stage, question=q)
+    return render_template('guru/question_form.html', stage=q.stage, question=q,
+                           curriculum_keys=CURRICULUM_KEYS,
+                           ct_skill_keys=CT_SKILL_KEYS)
 
 @guru_bp.route('/question/<int:question_id>/delete', methods=['POST'])
 @login_required
@@ -255,11 +257,11 @@ def question_toggle(question_id):
     return redirect(url_for('guru.question_list', stage_id=q.stage_id))
 
 
-def _apply_curriculum(stage, form):
+def _apply_curriculum(target, form):
     for key in CURRICULUM_KEYS:
-        setattr(stage, key, key in form)  # checkbox: ada di form = True, tidak ada = False
+        setattr(target, key, key in form)  # checkbox: ada di form = True, tidak ada = False
     for key in CT_SKILL_KEYS:
-        setattr(stage, key, key in form)
+        setattr(target, key, key in form)
 
 def _build_question(req, stage_id):
     content = req.form.get('content_text', '').strip()
@@ -404,3 +406,46 @@ def unlock_challenge():
     user = User.query.get(user_id)
     flash(f'Akses retry challenge untuk {user.username} berhasil dibuka.', 'success')
     return redirect(request.referrer or url_for('guru.dashboard'))
+
+@guru_bp.route('/stage/<int:stage_id>/reset-scores', methods=['POST'])
+@login_required
+@role_required('guru', 'admin')
+def reset_stage_scores(stage_id):
+    stage = Stage.query.get_or_404(stage_id)
+    
+    # 1. Identifikasi user yang terpengaruh (hanya mode challenge yang masuk total_points)
+    affected_users = db.session.query(StageCompletion.user_id).filter_by(
+        stage_id=stage_id, mode=MODE_CHALLENGE
+    ).distinct().all()
+    user_ids = [u[0] for u in affected_users]
+    
+    # 2. Hapus data terkait stage ini TERLEBIH DAHULU (agar tidak ikut dalam perhitungan ulang)
+    # Hapus StageCompletion
+    StageCompletion.query.filter_by(stage_id=stage_id).delete()
+    
+    # Hapus AttemptLog
+    AttemptLog.query.filter_by(stage_id=stage_id).delete()
+    
+    # Hapus GameSession
+    GameSession.query.filter_by(stage_id=stage_id).delete()
+    
+    # Hapus ChallengeUnlock
+    ChallengeUnlock.query.filter_by(stage_id=stage_id).delete()
+    
+    db.session.flush() # Pastikan penghapusan terdaftar di session sebelum hitung ulang
+
+    # 3. Hitung ulang total_points untuk setiap user yang terpengaruh
+    for uid in user_ids:
+        user = User.query.get(uid)
+        if user:
+            # Hitung total dari skor terbaik di stage-stage yang TERSISA
+            best_scores = db.session.query(func.max(StageCompletion.score))\
+                .filter_by(user_id=uid, mode=MODE_CHALLENGE)\
+                .group_by(StageCompletion.stage_id).all()
+            
+            user.total_points = sum(s[0] for s in best_scores)
+    
+    db.session.commit()
+    
+    flash(f'Seluruh skor dan riwayat pengerjaan untuk stage "{stage.title}" berhasil direset.', 'success')
+    return redirect(url_for('guru.stage_analytics', stage_id=stage_id))

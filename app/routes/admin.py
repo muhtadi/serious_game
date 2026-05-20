@@ -180,6 +180,29 @@ def reset_password(user_id):
     flash(f'Password untuk "{user.username}" berhasil direset.', 'success')
     return redirect(url_for('admin.user_management'))
 
+@admin_bp.route('/sync-all-scores', methods=['POST'])
+@login_required
+@role_required('admin')
+def sync_all_scores():
+    from app.models import StageCompletion, MODE_CHALLENGE
+    from sqlalchemy import func
+    
+    students = User.query.filter_by(role=RoleEnum.siswa).all()
+    count = 0
+    for s in students:
+        best_scores = db.session.query(func.max(StageCompletion.score))\
+            .filter_by(user_id=s.id, mode=MODE_CHALLENGE)\
+            .group_by(StageCompletion.stage_id).all()
+        
+        new_total = sum(score[0] for score in best_scores)
+        if s.total_points != new_total:
+            s.total_points = new_total
+            count += 1
+            
+    db.session.commit()
+    flash(f'Sinkronisasi selesai. {count} data siswa berhasil diperbarui.', 'success')
+    return redirect(url_for('admin.user_management'))
+
 @admin_bp.route('/delete-user/<int:user_id>', methods=['POST'])
 @login_required
 @role_required('admin')

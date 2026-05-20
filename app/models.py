@@ -66,6 +66,21 @@ class Stage(db.Model):
     is_active     = db.Column(db.Boolean, default=True)
     mode          = db.Column(db.String(10), nullable=False, default=MODE_PRACTICE)  # 'practice'|'challenge'
 
+    questions = db.relationship('Question', backref='stage', lazy=True,
+                                cascade='all, delete-orphan')
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+    id              = db.Column(db.Integer, primary_key=True)
+    stage_id        = db.Column(db.Integer, db.ForeignKey('stages.id'), nullable=False)
+    difficulty_tier = db.Column(db.String(10), nullable=False, default='Easy')
+    type            = db.Column(db.String(10), nullable=False)  # 'PG' | 'Isian'
+    content_text    = db.Column(db.Text, nullable=False)
+    media_url       = db.Column(db.String(255), nullable=True)
+    explanation     = db.Column(db.Text, nullable=True)
+    explanation_media_url = db.Column(db.String(255), nullable=True)
+    is_active       = db.Column(db.Boolean, default=True)
+
     # Digital Technologies Key Concepts
     abstraction         = db.Column(db.Boolean, default=False)
     data_collection     = db.Column(db.Boolean, default=False)
@@ -84,21 +99,6 @@ class Stage(db.Model):
     modelling_simulation = db.Column(db.Boolean, default=False)
     algorithms_ct        = db.Column(db.Boolean, default=False)
     evaluation           = db.Column(db.Boolean, default=False)
-
-    questions = db.relationship('Question', backref='stage', lazy=True,
-                                cascade='all, delete-orphan')
-
-class Question(db.Model):
-    __tablename__ = 'questions'
-    id              = db.Column(db.Integer, primary_key=True)
-    stage_id        = db.Column(db.Integer, db.ForeignKey('stages.id'), nullable=False)
-    difficulty_tier = db.Column(db.String(10), nullable=False, default='Easy')
-    type            = db.Column(db.String(10), nullable=False)  # 'PG' | 'Isian'
-    content_text    = db.Column(db.Text, nullable=False)
-    media_url       = db.Column(db.String(255), nullable=True)
-    explanation     = db.Column(db.Text, nullable=True)
-    explanation_media_url = db.Column(db.String(255), nullable=True)
-    is_active       = db.Column(db.Boolean, default=True)
 
     answers = db.relationship('Answer', backref='question', lazy=True,
                               cascade='all, delete-orphan')

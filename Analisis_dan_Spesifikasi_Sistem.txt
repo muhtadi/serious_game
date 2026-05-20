@@ -1,10 +1,10 @@
 # Dokumen Analisis Kebutuhan dan Spesifikasi Sistem
-## Proyek: Serious Game Edukasi (Kiro One)
+## Proyek: Gim Serius PolaCerdas (Kiro One)
 
 ---
 
 ### 1. PENDAHULUAN
-Dokumen ini merinci kebutuhan fungsional, non-fungsional, serta spesifikasi teknis untuk aplikasi *Serious Game* yang dirancang untuk mendukung pembelajaran konsep Teknologi Digital dan Keterampilan Berpikir Komputasi (*Computational Thinking*). Sistem ini memungkinkan siswa belajar melalui tantangan interaktif, sementara guru dapat memantau progres dan menganalisis kesalahan siswa.
+Dokumen ini merinci kebutuhan fungsional, non-fungsional, serta spesifikasi teknis untuk aplikasi *Gim Serius PolaCerdas* yang dirancang untuk mendukung pembelajaran konsep Teknologi Digital dan Keterampilan Berpikir Komputasi (*Computational Thinking*). Sistem ini memungkinkan siswa belajar melalui tantangan interaktif, sementara guru dapat memantau progres dan menganalisis kesalahan siswa.
 
 ---
 

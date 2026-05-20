@@ -29,36 +29,36 @@ def role_required(*roles):
 def get_student_competency_data(user_id):
     """
     Hitung akurasi (mastery) siswa untuk setiap Digital Tech Key Concept dan CT Skill Alignment.
-    Data diambil dari AttemptLog dan Stage terkait.
+    Data diambil dari AttemptLog dan Question terkait.
     """
-    from app.models import AttemptLog, Stage, CURRICULUM_KEYS, CT_SKILL_KEYS
+    from app.models import AttemptLog, Question, CURRICULUM_KEYS, CT_SKILL_KEYS
     from sqlalchemy import func
 
     # Kita ambil log dari challenge mode untuk akurasi yang lebih valid (penelitian)
     logs = AttemptLog.query.filter_by(user_id=user_id, mode='challenge').all()
     
-    # Ambil info stage untuk setiap log untuk tahu konsep apa yang diwakili
-    stage_ids = list(set(l.stage_id for l in logs))
-    stages = {s.id: s for s in Stage.query.filter(Stage.id.in_(stage_ids)).all()} if stage_ids else {}
+    # Ambil info question untuk setiap log untuk tahu konsep apa yang diwakili
+    question_ids = list(set(l.question_id for l in logs))
+    questions = {q.id: q for q in Question.query.filter(Question.id.in_(question_ids)).all()} if question_ids else {}
 
     # Accumulators
     dt_stats = {key: {'correct': 0, 'total': 0} for key in CURRICULUM_KEYS}
     ct_stats = {key: {'correct': 0, 'total': 0} for key in CT_SKILL_KEYS}
 
     for log in logs:
-        stage = stages.get(log.stage_id)
-        if not stage: continue
+        question = questions.get(log.question_id)
+        if not question: continue
         
         # Digital Tech Concepts
         for key in CURRICULUM_KEYS:
-            if getattr(stage, key, False):
+            if getattr(question, key, False):
                 dt_stats[key]['total'] += 1
                 if log.is_correct:
                     dt_stats[key]['correct'] += 1
         
         # CT Skills
         for key in CT_SKILL_KEYS:
-            if getattr(stage, key, False):
+            if getattr(question, key, False):
                 ct_stats[key]['total'] += 1
                 if log.is_correct:
                     ct_stats[key]['correct'] += 1

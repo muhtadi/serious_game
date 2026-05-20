@@ -23,6 +23,23 @@
             <span class="badge bg-{{ 'primary' if q.type == 'PG' else 'warning text-dark' }} me-2">{{ q.type }}</span>
             <span class="badge bg-{{ 'success' if q.difficulty_tier == 'Easy' else ('warning text-dark' if q.difficulty_tier == 'Medium' else 'danger') }} me-2">{{ q.difficulty_tier }}</span>
             <span class="badge {{ 'bg-success' if q.is_active else 'bg-danger' }} me-2">{{ 'Aktif' if q.is_active else 'Nonaktif' }}</span>
+            <div class="mt-1">
+                {% for key in [
+                    'abstraction', 'data_collection', 'data_representation', 'data_interpretation',
+                    'specification', 'algorithms', 'implementation', 'digital_systems', 'interactions', 'impact'
+                ] %}
+                    {% if q|attr(key) %}
+                    <span class="badge rounded-pill bg-info text-dark x-small">{{ key.replace('_', ' ').title() }}</span>
+                    {% endif %}
+                {% endfor %}
+                {% for key in [
+                    'decomposition', 'abstraction_ct', 'modelling_simulation', 'algorithms_ct', 'evaluation'
+                ] %}
+                    {% if q|attr(key) %}
+                    <span class="badge rounded-pill bg-primary x-small">{{ key.replace('_', ' ').replace('ct', 'CT').title() }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
             {{ q.content_text | striptags | truncate(80) }}
         </button>
     </h2>

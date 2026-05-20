@@ -1,10 +1,10 @@
 # Dokumen Analisis Kebutuhan dan Spesifikasi Sistem
-## Proyek: Serious Game Edukasi (Kiro One)
+## Proyek: Gim Serius PolaCerdas (Kiro One)
 
 ---
 
 ### 1. PENDAHULUAN
-Dokumen ini merinci kebutuhan fungsional, non-fungsional, serta spesifikasi teknis untuk aplikasi *Serious Game* yang dirancang untuk mendukung pembelajaran konsep Teknologi Digital dan Keterampilan Berpikir Komputasi (*Computational Thinking*). Sistem ini memungkinkan siswa belajar melalui tantangan interaktif, sementara guru dapat memantau progres dan menganalisis kesalahan siswa.
+Dokumen ini merinci kebutuhan fungsional, non-fungsional, serta spesifikasi teknis untuk aplikasi *Gim Serius PolaCerdas* yang dirancang untuk mendukung pembelajaran konsep Teknologi Digital dan Keterampilan Berpikir Komputasi (*Computational Thinking*). Sistem ini memungkinkan siswa belajar melalui tantangan interaktif, sementara guru dapat memantau progres dan menganalisis kesalahan siswa.
 
 ---
 
@@ -48,6 +48,13 @@ Dokumen ini merinci kebutuhan fungsional, non-fungsional, serta spesifikasi tekn
 #### 3.2 Arsitektur Data (Entity Relationship)
 Sistem menggunakan struktur relasional untuk menghubungkan pengguna, konten kurikulum, dan log permainan.
 
+#### 3.3 Sistem Penilaian (Scoring System)
+Sistem skor bersifat akumulatif dan tidak terbatas (uncapped) untuk memberikan diferensiasi yang lebih baik antar siswa:
+*   **Poin Dasar**: Easy (100), Medium (150), Hard (200).
+*   **Bonus Waktu**: Hadiah hingga 50% dari poin dasar jika menjawab lebih cepat dari target waktu.
+*   **Bonus Strategis**: +500 poin untuk penyelesaian stage (Stage Clear) dan +100 poin per sisa nyawa (Health Bonus).
+*   **Mastery**: Dihitung berdasarkan bobot kesulitan (1, 2, 3) untuk keperluan statistik kompetensi dan spider chart.
+
 ---
 
 ### 4. DIAGRAM DAN FLOWCHART
@@ -59,7 +66,7 @@ graph TD
     Guru((Guru))
     Admin((Admin))
 
-    subgraph "Sistem Serious Game"
+    subgraph "Sistem Gim Serius PolaCerdas"
         UC1(Login)
         UC2(Bermain Practice/Challenge)
         UC3(Lihat Leaderboard)
@@ -132,8 +139,8 @@ erDiagram
 | :--- | :--- | :--- |
 | **users** | id, username, password, role, total_points | Data pengguna dan perannya. |
 | **moduls** | id, title, order_index, is_active | Kelompok besar materi. |
-| **stages** | id, modul_id, title, difficulty, mode, ct_skills | Level permainan dan pemetaan skill CT. |
-| **questions** | id, stage_id, type, content_text, explanation | Data soal (PG/Isian). |
+| **stages** | id, modul_id, title, difficulty, mode | Level permainan. |
+| **questions** | id, stage_id, type, content_text, ct_skills, digital_tech | Data soal (PG/Isian) dan pemetaan kompetensi. |
 | **game_sessions**| id, user_id, stage_id, mode, nyawa | Sesi aktif saat siswa bermain. |
 | **attempt_logs** | id, session_id, question_id, is_correct, time_spent | Log jawaban detail untuk penelitian/analytics. |
 | **stage_completions**| id, user_id, accuracy, mastery_percentage, score | Rekap hasil akhir per level. |

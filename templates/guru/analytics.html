@@ -4,7 +4,13 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4>📊 Analytics Challenge — {{ stage.title }}</h4>
-  <a href="{{ url_for('guru.dashboard') }}" class="btn btn-outline-secondary btn-sm">← Kembali</a>
+  <div class="d-flex gap-2">
+    <form action="{{ url_for('guru.reset_stage_scores', stage_id=stage.id) }}" method="POST" 
+          onsubmit="return confirm('PERINGATAN: Tindakan ini akan menghapus SEMUA skor, riwayat pengerjaan, dan log untuk stage ini secara permanen bagi SELURUH siswa. Poin di leaderboard global juga akan berkurang. Apakah Anda yakin?')">
+      <button type="submit" class="btn btn-outline-danger btn-sm">🗑️ Reset Seluruh Skor</button>
+    </form>
+    <a href="{{ url_for('guru.dashboard') }}" class="btn btn-outline-secondary btn-sm">← Kembali</a>
+  </div>
 </div>
 
 <div class="row g-3 mb-4">
@@ -84,14 +90,36 @@
       </thead>
       <tbody>
       {% for qid, stat in q_stats.items() %}
+      {% set q = stat.question %}
       <tr class="{{ 'table-danger' if stat.accuracy < 40 else '' }}">
-        <td class="text-truncate" style="max-width:200px">
-          {{ stat.question.content_text[:60] ~ '…' if stat.question and stat.question.content_text|length > 60 else (stat.question.content_text if stat.question else '-') }}
+        <td>
+          <div class="text-truncate" style="max-width:250px" title="{{ q.content_text | striptags if q else '' }}">
+            {{ q.content_text | striptags | truncate(60) if q else '-' }}
+          </div>
+          {% if q %}
+          <div class="mt-1">
+            {% for key in [
+                'abstraction', 'data_collection', 'data_representation', 'data_interpretation',
+                'specification', 'algorithms', 'implementation', 'digital_systems', 'interactions', 'impact'
+            ] %}
+                {% if q|attr(key) %}
+                <span class="badge rounded-pill bg-info text-dark" style="font-size: 0.65rem;">{{ key.replace('_', ' ').title() }}</span>
+                {% endif %}
+            {% endfor %}
+            {% for key in [
+                'decomposition', 'abstraction_ct', 'modelling_simulation', 'algorithms_ct', 'evaluation'
+            ] %}
+                {% if q|attr(key) %}
+                <span class="badge rounded-pill bg-primary" style="font-size: 0.65rem;">{{ key.replace('_', ' ').replace('ct', 'CT').title() }}</span>
+                {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
         </td>
         <td>
-          {% if stat.question %}
-          <span class="badge {{ 'bg-success' if stat.question.difficulty_tier == 'Easy' else ('bg-warning text-dark' if stat.question.difficulty_tier == 'Medium' else 'bg-danger') }}">
-            {{ stat.question.difficulty_tier }}
+          {% if q %}
+          <span class="badge {{ 'bg-success' if q.difficulty_tier == 'Easy' else ('bg-warning text-dark' if q.difficulty_tier == 'Medium' else 'bg-danger') }}">
+            {{ q.difficulty_tier }}
           </span>
           {% endif %}
         </td>

@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Serious Game - Local Server
+echo   Gim Serius PolaCerdas - Local Server
 echo ========================================
 
 cd /d "%~dp0"

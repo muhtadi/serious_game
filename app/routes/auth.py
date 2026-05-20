@@ -43,6 +43,11 @@ def logout():
     flash('Anda telah logout.', 'info')
     return redirect(url_for('auth.login'))
 
+@auth_bp.route('/help')
+@login_required
+def help():
+    return render_template('auth/help.html')
+
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():

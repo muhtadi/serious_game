@@ -5,29 +5,28 @@
 <h2 class="mb-4">📊 Progress & Analytics</h2>
 
 <!-- Statistik Ringkas -->
-<div class="row mb-4">
+<div class="row mb-4 g-3">
     <div class="col-md-4">
-        <div class="card bg-primary text-white">
-            <div class="card-body text-center">
-                <div class="display-4">{{ total_stages }}</div>
-                <div>Stage Selesai</div>
+        <div class="card bg-primary text-white h-100 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="display-4 fw-bold">{{ total_stages }}</div>
+                <div class="text-uppercase small fw-bold">Stage Selesai</div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-success text-white">
-            <div class="card-body text-center">
-                <div class="display-4">{{ total_score }}</div>
-                <div>Total Skor</div>
+        <div class="card bg-success text-white h-100 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="display-4 fw-bold">{{ total_score }}</div>
+                <div class="text-uppercase small fw-bold">Total Skor</div>
             </div>
         </div>
     </div>
-    <div class="row mb-4">
     <div class="col-md-4">
-        <div class="card bg-info text-dark">
-            <div class="card-body text-center">
-                <div class="display-4">{{ avg_mastery }}%</div>
-                <div>Rata-rata Mastery</div>
+        <div class="card bg-info text-dark h-100 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="display-4 fw-bold">{{ avg_mastery }}%</div>
+                <div class="text-uppercase small fw-bold">Rata-rata Mastery</div>
             </div>
         </div>
     </div>

@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Panduan Penggunaan{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">📖 Panduan Penggunaan & Sistem Penilaian</h4>
+            </div>
+            <div class="card-body">
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">🌟 Mengenal Gim Serius PolaCerdas</h5>
+                    <p>Aplikasi ini adalah platform pembelajaran berbasis permainan (serious game) yang dirancang untuk membantu Anda melatih kemampuan <strong>Computational Thinking (CT)</strong> dan memahami konsep <strong>Digital Technology (DT)</strong> melalui tantangan soal-soal Bebras dan materi informatika lainnya.</p>
+                </section>
+
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">🎮 Mode Permainan</h5>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card h-100 border-info">
+                                <div class="card-body">
+                                    <h6 class="card-title text-info">🎯 Mode Practice (Latihan)</h6>
+                                    <ul>
+                                        <li>Fokus pada pembelajaran tanpa tekanan.</li>
+                                        <li><strong>Hint & Pembahasan:</strong> Anda bisa melihat penjelasan jika menjawab salah.</li>
+                                        <li><strong>Nyawa:</strong> Tidak ada batas nyawa (bebas mencoba ulang).</li>
+                                        <li>Skor di mode ini tidak masuk ke Leaderboard Global.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 border-danger">
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">⚔️ Mode Challenge (Tantangan)</h6>
+                                    <ul>
+                                        <li>Asesmen kemampuan yang sesungguhnya.</li>
+                                        <li><strong>Kesempatan Terbatas:</strong> Hanya bisa dikerjakan 1 kali (kecuali di-reset oleh guru).</li>
+                                        <li><strong>Nyawa:</strong> Memiliki 3 nyawa. Jika habis, game over.</li>
+                                        <li>Skor terbaik akan masuk ke <strong>Leaderboard</strong>.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">📈 Sistem Leveling Adaptif</h5>
+                    <p>Permainan ini menyesuaikan tingkat kesulitan secara otomatis berdasarkan performa Anda:</p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Kondisi</th>
+                                    <th>Efek</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Jawaban <strong>Benar</strong></td>
+                                    <td>Naik ke level kesulitan berikutnya (Easy → Medium → Hard).</td>
+                                </tr>
+                                <tr>
+                                    <td>Jawaban <strong>Salah 1x</strong></td>
+                                    <td>Tetap di level kesulitan yang sama.</td>
+                                </tr>
+                                <tr>
+                                    <td>Jawaban <strong>Salah 2x Berturut-turut</strong></td>
+                                    <td>Turun ke level kesulitan sebelumnya (Hard → Medium → Easy).</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted small"><em>*Anda dinyatakan lulus Stage jika berhasil menjawab benar soal pada level <strong>Hard</strong>.</em></p>
+                </section>
+
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">🔢 Perhitungan Skor & Mastery</h5>
+                    <p>Sistem skor saat ini bersifat <strong>akumulatif dan tidak terbatas (uncapped)</strong>. Semakin cepat dan akurat Anda, semakin tinggi skor yang didapat:</p>
+                    <ul>
+                        <li><strong>Poin Dasar Soal</strong>:
+                            <ul>
+                                <li>🟢 Easy: 100 poin</li>
+                                <li>🟡 Medium: 150 poin</li>
+                                <li>🔴 Hard: 200 poin</li>
+                            </ul>
+                        </li>
+                        <li><strong>Bonus Waktu (Time Bonus)</strong>:
+                            Jika Anda menjawab benar lebih cepat dari target waktu, Anda mendapat bonus <strong>2 poin per detik</strong> sisa (maksimal bonus 50% dari poin dasar).
+                        </li>
+                        <li><strong>Bonus Nyawa (Health Bonus)</strong>:
+                            Setiap sisa nyawa di akhir permainan memberikan bonus <strong>+100 poin</strong>.
+                        </li>
+                        <li><strong>Mastery (%)</strong>: Mengukur tingkat penguasaan materi berdasarkan bobot kesulitan soal yang dijawab benar (Easy: 1, Medium: 2, Hard: 3).</li>
+                    </ul>
+                </section>
+
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">🏆 Konsep Leaderboard</h5>
+                    <p>Ada dua jenis peringkat yang bisa Anda pantau:</p>
+                    <ol>
+                        <li><strong>Peringkat Global</strong>: Berdasarkan <strong>Total Poin Global</strong> dari seluruh stage.</li>
+                        <li><strong>Peringkat Per Stage</strong>: Berdasarkan skor tertinggi di satu stage tertentu. Jika ada siswa dengan skor yang sama, siswa yang menyelesaikan dengan <strong>waktu tersingkat</strong> akan berada di posisi lebih atas.</li>
+                    </ol>
+                </section>
+
+                <section class="mb-5">
+                    <h5 class="text-primary border-bottom pb-2">📊 Analytics & Spider Chart</h5>
+                    <p>Halaman Analytics menampilkan dua grafik radar yang menunjukkan penguasaan Anda:</p>
+                    <ul>
+                        <li><strong>Digital Technology Key Concepts</strong>: 10 konsep utama informatika (Abstraction, Algorithms, Digital Systems, dll).</li>
+                        <li><strong>Computational Thinking Skill Alignment</strong>: 5 skill berpikir komputasional (Decomposition, Abstraction, Modelling, Algorithms, Evaluation).</li>
+                    </ul>
+                    <p>Data ini diambil dari <strong>setiap soal yang Anda jawab dengan benar</strong> di Mode Challenge. Semakin sering Anda menjawab benar soal dengan kategori tertentu, semakin luas area grafik Anda!</p>
+                </section>
+
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('siswa.dashboard') if current_user.role.value == 'siswa' else url_for('guru.dashboard') }}" class="btn btn-primary px-5">Saya Mengerti, Ayo Mulai!</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

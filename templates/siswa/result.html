@@ -23,7 +23,7 @@
     {% endif %}
 
     <div class="display-1 fw-bold mb-1
-      text-{{ 'success' if completion.score >= 700 else ('warning' if completion.score >= 400 else 'danger') }}">
+      text-{{ 'success' if completion.mastery_percentage >= 70 else ('warning' if completion.mastery_percentage >= 40 else 'danger') }}">
       {{ completion.score }}
     </div>
     <p class="text-muted fs-4 mb-4">poin</p>
@@ -83,6 +83,51 @@
   </div>
 </div>
 
+<!-- Detail Perolehan Skor -->
+{% if breakdown %}
+<div class="card mb-5 shadow-sm" style="border-radius:20px">
+  <div class="card-header bg-dark text-white py-3">
+    <h5 class="mb-0">🔍 Detail Perolehan Skor</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Kategori</th>
+            <th>Detail</th>
+            <th class="text-end">Poin</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in breakdown.questions %}
+          <tr>
+            <td>Soal <strong>{{ q.tier }}</strong></td>
+            <td>Poin Dasar ({{ q.base }}) + Bonus Waktu ({{ q.time_bonus }})</td>
+            <td class="text-end fw-bold">+{{ q.base + q.time_bonus }}</td>
+          </tr>
+          {% endfor %}
+          
+          {% if breakdown.health_bonus > 0 %}
+          <tr class="table-info">
+            <td><strong>Health Bonus</strong></td>
+            <td>{{ completion.nyawa_remaining }} nyawa tersisa × 100 poin</td>
+            <td class="text-end fw-bold text-info">+{{ breakdown.health_bonus }}</td>
+          </tr>
+          {% endif %}
+        </tbody>
+        <tfoot class="table-dark">
+          <tr>
+            <td colspan="2" class="text-end"><strong>Total Skor Akhir</strong></td>
+            <td class="text-end"><strong>{{ completion.score }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Pembahasan per soal (selalu tampil, baik practice maupun challenge) -->
 {% if logs %}
 <h4 class="mb-4 fw-bold text-muted px-2">📖 Pembahasan Jawaban</h4>
@@ -97,6 +142,23 @@
       <span class="badge {{ 'bg-success' if log.difficulty_tier == 'Easy' else ('bg-warning text-dark' if log.difficulty_tier == 'Medium' else 'bg-danger') }} px-3 py-2">
         {{ log.difficulty_tier }}
       </span>
+      <div class="d-none d-md-block">
+        {% for key in [
+            'abstraction', 'data_collection', 'data_representation', 'data_interpretation',
+            'specification', 'algorithms', 'implementation', 'digital_systems', 'interactions', 'impact'
+        ] %}
+            {% if q|attr(key) %}
+            <span class="badge rounded-pill bg-info text-dark" style="font-size: 0.7rem;">{{ key.replace('_', ' ').title() }}</span>
+            {% endif %}
+        {% endfor %}
+        {% for key in [
+            'decomposition', 'abstraction_ct', 'modelling_simulation', 'algorithms_ct', 'evaluation'
+        ] %}
+            {% if q|attr(key) %}
+            <span class="badge rounded-pill bg-primary" style="font-size: 0.7rem;">{{ key.replace('_', ' ').replace('ct', 'CT').title() }}</span>
+            {% endif %}
+        {% endfor %}
+      </div>
       <span class="text-muted fw-bold">{{ log.time_spent_seconds|round(1) }}s</span>
     </div>
     <span class="badge {{ 'bg-success' if log.is_correct else 'bg-danger' }} px-3 py-2">

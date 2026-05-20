@@ -134,16 +134,18 @@ def game(session_id):
     answers_data = [{'id': a.id, 'text': a.text} for a in q.answers] \
                    if q.type == 'PG' else []
 
-    # Hitung mastery sementara dari sesi ini
+    # Hitung mastery & skor sementara dari sesi ini
     logs = AttemptLog.query.filter_by(session_id=session_id).all()
     temp_mastery = _calc_mastery(logs)
+    temp_score   = _calc_current_session_score(sess)
 
     return render_template('siswa/game.html',
         sess=sess, stage=sess.stage, question=q,
         answers=answers_data,
         level_order=LEVEL_ORDER,
         is_practice=(sess.mode == MODE_PRACTICE),
-        temp_mastery=temp_mastery
+        temp_mastery=temp_mastery,
+        temp_score=temp_score
     )
 
 # ── Submit Jawaban ─────────────────────────────────────────────────────────────
@@ -234,6 +236,9 @@ def game_submit(session_id):
     if not is_correct and sess.mode == MODE_PRACTICE and q.explanation:
         hint = q.explanation
 
+    # Hitung skor sementara sesi ini untuk ditampilkan di HUD
+    temp_score = _calc_current_session_score(sess)
+
     return jsonify({
         'is_correct'   : is_correct,
         'correct_text' : correct_text,
@@ -244,7 +249,8 @@ def game_submit(session_id):
         'nyawa'        : max(0, sess.nyawa),
         'current_level': sess.current_level,
         'result_url'   : result_url,
-        'is_practice'  : sess.mode == MODE_PRACTICE
+        'is_practice'  : sess.mode == MODE_PRACTICE,
+        'current_score': temp_score
     })
 
 # ── Hasil ──────────────────────────────────────────────────────────────────────
@@ -261,9 +267,14 @@ def stage_result(session_id):
     # Attach question object ke setiap log untuk tampil pembahasan
     for log in logs:
         log._question = Question.query.get(log.question_id)
+    
+    # Calculate detailed breakdown for the template
+    breakdown = _calc_score_breakdown(sess, logs, completion)
+
     return render_template('siswa/result.html',
                            sess=sess, completion=completion, logs=logs,
-                           is_practice=(sess.mode == MODE_PRACTICE))
+                           is_practice=(sess.mode == MODE_PRACTICE),
+                           breakdown=breakdown)
 
 # ── Leaderboard Sorting Update ────────────────────────────────────────────────
 @siswa_bp.route('/game/<session_id>/next')
@@ -282,6 +293,9 @@ def game_next(session_id):
     answers_data = [{'id': a.id, 'text': a.text} for a in q.answers] \
                    if q.type == 'PG' else []
 
+    # Hitung skor sementara sesi ini
+    temp_score = _calc_current_session_score(sess)
+
     return jsonify({
         'question_id'  : q.id,
         'type'         : q.type,
@@ -290,7 +304,8 @@ def game_next(session_id):
                           (q.media_url.startswith('http') or q.media_url.startswith('/'))
                           else url_for('static', filename=q.media_url) if q.media_url else None),
         'difficulty_tier': q.difficulty_tier,
-        'answers'      : answers_data
+        'answers'      : answers_data,
+        'current_score': temp_score
     })
 
 @siswa_bp.route('/leaderboard/<int:stage_id>')
@@ -323,7 +338,7 @@ def leaderboards():
     """Semua leaderboard per stage + Peringkat Global."""
     # 1. Peringkat Global
     global_users = User.query.filter(User.role == RoleEnum.siswa)\
-                             .order_by(User.total_points.desc()).all()
+                             .order_by(User.total_points.desc(), User.username.asc()).all()
 
     # 2. Ringkasan Top 5 per Stage
     stages = Stage.query.filter_by(is_active=True).order_by(Stage.order_index).all()
@@ -437,34 +452,105 @@ def _calc_mastery(logs):
         return 0.0
     return round(sum(1 for l in logs if l.is_correct) / len(logs) * 100, 1)
 
+def _calc_current_session_score(sess):
+    logs = AttemptLog.query.filter_by(session_id=sess.id).all()
+    if not logs: return 0
+    
+    BASE_POINTS = {'Easy': 100, 'Medium': 150, 'Hard': 200}
+    TARGET_TIME = {'Easy': 30, 'Medium': 60, 'Hard': 120}
+    TIME_BONUS_FACTOR = 2
+    
+    score = 0
+    for log in logs:
+        if log.is_correct:
+            base = BASE_POINTS.get(log.difficulty_tier, 100)
+            target = TARGET_TIME.get(log.difficulty_tier, 60)
+            time_spent = log.time_spent_seconds or 0
+            time_bonus = 0
+            if time_spent < target:
+                time_bonus = int((target - time_spent) * TIME_BONUS_FACTOR)
+                time_bonus = min(time_bonus, int(base * 0.5))
+            score += (base + time_bonus)
+            
+    # Selama game berjalan, kita tidak tampilkan bonus nyawa/clear agar ada kejutan di akhir
+    return score
+
+def _calc_score_breakdown(sess, logs, completion):
+    if not completion: return None
+    
+    BASE_POINTS = {'Easy': 100, 'Medium': 150, 'Hard': 200}
+    TARGET_TIME = {'Easy': 30, 'Medium': 60, 'Hard': 120}
+    TIME_BONUS_FACTOR = 2
+    
+    # Breakdown structure
+    breakdown = {
+        'questions': [], # {tier, base, time_bonus}
+        'total_base': 0,
+        'total_time_bonus': 0,
+        'clear_bonus': 500 if completion.is_cleared else 0,
+        'health_bonus': completion.nyawa_remaining * 100
+    }
+    
+    for log in logs:
+        if log.is_correct:
+            base = BASE_POINTS.get(log.difficulty_tier, 100)
+            target = TARGET_TIME.get(log.difficulty_tier, 60)
+            time_spent = log.time_spent_seconds or 0
+            time_bonus = 0
+            if time_spent < target:
+                time_bonus = int((target - time_spent) * TIME_BONUS_FACTOR)
+                time_bonus = min(time_bonus, int(base * 0.5))
+            
+            breakdown['questions'].append({
+                'tier': log.difficulty_tier,
+                'base': base,
+                'time_bonus': time_bonus
+            })
+            breakdown['total_base'] += base
+            breakdown['total_time_bonus'] += time_bonus
+            
+    return breakdown
+
 def _save_completion(sess):
     logs = AttemptLog.query.filter_by(session_id=sess.id).all()
-    total      = len(logs)
-    if total == 0: return
+    if not logs: return
 
-    # Bobot Soal: Easy=1, Medium=2, Hard=3
-    weights = {'Easy': 1, 'Medium': 2, 'Hard': 3}
+    # ── Konstanta Scoring ──
+    # Poin Dasar
+    BASE_POINTS = {'Easy': 100, 'Medium': 150, 'Hard': 200}
+    # Target Waktu (detik) untuk Bonus
+    TARGET_TIME = {'Easy': 30, 'Medium': 60, 'Hard': 120}
+    TIME_BONUS_FACTOR = 2  # Poin per detik sisa
     
-    # Mastery = (total skor benar berbobot) / (total skor maksimal yang dikerjakan)
+    final_score = 0
+    
+    # 1. Hitung Poin dari Jawaban Benar + Bonus Waktu
+    for log in logs:
+        if log.is_correct:
+            base = BASE_POINTS.get(log.difficulty_tier, 100)
+            target = TARGET_TIME.get(log.difficulty_tier, 60)
+            
+            # Bonus Waktu: (Target - Waktu) * Faktor
+            time_spent = log.time_spent_seconds or 0
+            time_bonus = 0
+            if time_spent < target:
+                time_bonus = int((target - time_spent) * TIME_BONUS_FACTOR)
+                # Batasi bonus waktu maksimal 50% dari poin dasar agar tidak terlalu timpang
+                time_bonus = min(time_bonus, int(base * 0.5))
+            
+            final_score += (base + time_bonus)
+
+    # 2. Bonus Penyelesaian Stage (Dihapus)
+        
+    # 3. Bonus Nyawa (Hanya jika clear atau di mode challenge)
+    health_bonus = max(0, sess.nyawa) * 100
+    final_score += health_bonus
+
+    # 4. Kalkulasi Mastery % (Tetap untuk statistik/chart)
+    weights = {'Easy': 1, 'Medium': 2, 'Hard': 3}
     sum_correct_weight = sum(weights.get(l.difficulty_tier, 1) for l in logs if l.is_correct)
     sum_total_weight   = sum(weights.get(l.difficulty_tier, 1) for l in logs)
-    
-    mastery_val = sum_correct_weight / sum_total_weight if sum_total_weight > 0 else 0
-    mastery_pct = round(mastery_val * 100, 1)
-    
-    # Score = Mastery × 1000
-    final_score = round(mastery_val * 1000)
-    
-    # Level tertinggi yang dicapai
-    reached_levels = [l.level_at_attempt for l in logs]
-    highest_lvl_str = 'Easy'
-    for lvl in ['Hard', 'Medium', 'Easy']:
-        if lvl in reached_levels:
-            highest_lvl_str = lvl
-            break
-    
-    total_time = sum(l.time_spent_seconds or 0 for l in logs)
-    path       = [l.level_at_attempt for l in logs]
+    mastery_pct = round((sum_correct_weight / sum_total_weight * 100), 1) if sum_total_weight > 0 else 0
 
     comp = StageCompletion(
         session_id          = sess.id,
@@ -473,19 +559,19 @@ def _save_completion(sess):
         modul_id            = sess.stage.modul_id,
         mode                = sess.mode,
         attempt_number      = sess.attempt_number,
-        total_answered      = total,
+        total_answered      = len(logs),
         correct_easy        = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Easy'),
         correct_medium      = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Medium'),
         correct_hard        = sum(1 for l in logs if l.is_correct and l.difficulty_tier == 'Hard'),
-        wrong_count         = total - sum(1 for l in logs if l.is_correct),
+        wrong_count         = sum(1 for l in logs if not l.is_correct),
         accuracy            = mastery_pct,
         mastery_percentage  = mastery_pct,
-        final_level_reached = highest_lvl_str,
+        final_level_reached = sess.current_level,
         is_cleared          = sess.is_cleared,
         nyawa_remaining     = max(0, sess.nyawa),
-        total_time_seconds  = total_time,
+        total_time_seconds  = sum(l.time_spent_seconds or 0 for l in logs),
         score               = final_score,
-        progression_path    = json.dumps(path),
+        progression_path    = json.dumps([l.level_at_attempt for l in logs]),
         completed_at        = datetime.now(timezone.utc)
     )
     db.session.add(comp)
@@ -493,12 +579,11 @@ def _save_completion(sess):
 
     # Update total_points hanya dari challenge mode
     if sess.mode == MODE_CHALLENGE:
-        best_prev = StageCompletion.query.filter_by(
-            user_id=current_user.id, stage_id=sess.stage_id, mode=MODE_CHALLENGE
-        ).filter(StageCompletion.session_id != sess.id)\
-         .order_by(StageCompletion.score.desc()).first()
-        prev_best = best_prev.score if best_prev else 0
-        if final_score > prev_best:
-            current_user.total_points += (final_score - prev_best)
+        # Hitung ulang total points dari semua skor terbaik per stage (Challenge Mode)
+        best_scores = db.session.query(func.max(StageCompletion.score))\
+            .filter_by(user_id=current_user.id, mode=MODE_CHALLENGE)\
+            .group_by(StageCompletion.stage_id).all()
+        
+        current_user.total_points = sum(s[0] for s in best_scores)
 
     db.session.commit()
